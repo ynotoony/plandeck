@@ -51,6 +51,9 @@
   margin: 0;
   padding: 0;
 }
+html {
+  background: var(--bg);
+}
 [hidden] {
   display: none !important;
 }
