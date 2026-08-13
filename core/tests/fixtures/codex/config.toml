@@ -1,0 +1,28 @@
+model_provider = "alibaba"
+model = "qwen3.8-max"
+model_reasoning_effort = "high"
+disable_response_storage = true
+
+notify = ["/usr/bin/env", "node", "/Users/placeholder/.tokentracker/bin/notify.cjs"]
+
+[model_providers.alibaba]
+name = "Alibaba Token Plan"
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+wire_api = "chat"
+
+[mcp_servers.node_repl]
+args = []
+command = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+CODEX_HOME = "/Users/placeholder/.codex"
+
+[desktop]
+followUpQueueMode = "queue"
+localeOverride = "zh-CN"
+dock-icon-preference = "codex-system"
+
+[features]
+js_repl = false

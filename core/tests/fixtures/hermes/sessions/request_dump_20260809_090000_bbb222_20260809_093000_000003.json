@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-08-09T09:30:00.000000",
+  "session_id": "20260809_090000_bbb222",
+  "reason": "max_retries_exhausted",
+  "request": {
+    "method": "POST",
+    "url": "https://rogue.example.com/v1/chat/completions",
+    "body": {
+      "model": "mystery-model-x",
+      "messages": []
+    }
+  }
+}

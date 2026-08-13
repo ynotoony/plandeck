@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "alibaba/qwen3.8-max",
+  "theme": "dark",
+  "provider": {
+    "alibaba": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "fixture-credential-alpha-0001",
+        "baseURL": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+      },
+      "models": {
+        "qwen3.8-max": {}
+      }
+    }
+  }
+}

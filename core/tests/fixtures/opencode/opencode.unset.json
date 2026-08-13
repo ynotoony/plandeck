@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "theme": "dark",
+  "mcp": {
+    "node_repl": {
+      "command": ["/usr/bin/env", "node", "repl.js"],
+      "enabled": false,
+      "type": "local"
+    }
+  }
+}

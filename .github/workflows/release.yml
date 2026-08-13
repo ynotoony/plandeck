@@ -1,0 +1,48 @@
+name: Release macOS Beta
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag, for example v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build unsigned Apple Silicon DMG
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - run: npm ci
+        working-directory: app
+      - run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+        working-directory: app
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+      - name: Create checksum
+        run: |
+          cd app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
+          shasum -a 256 PlanDeck*.dmg > SHA256SUMS
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/PlanDeck*.dmg \
+            app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/SHA256SUMS \
+            --title "PlanDeck ${VERSION#v} Beta" \
+            --notes-file docs/release-notes/0.1.0.md \
+            --prerelease

@@ -1,0 +1,2 @@
+{"timestamp":"2026-08-11T01:00:00.000Z","type":"session_meta","payload":{"session_id":"019f0000-0000-7000-8000-000000000002","id":"019f0000-0000-7000-8000-000000000002","timestamp":"2026-08-11T01:00:00.000Z","cwd":"/Users/placeholder/demo","originator":"codex-cli","model_provider":"alibaba"}}
+{"timestamp":"2026-08-11T01:10:00.000Z","type":"turn_context","payload":{"cwd":"/Users/placeholder/demo","model":"mystery-model-x","effort":"low"}}

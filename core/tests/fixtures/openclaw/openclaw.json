@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.6.11",
+    "lastTouchedAt": "2026-07-02T03:29:30.437Z"
+  },
+  "auth": {
+    "profiles": {
+      "openrouter:default": {
+        "provider": "openrouter",
+        "mode": "api_key"
+      },
+      "alibaba:default": {
+        "provider": "alibaba",
+        "mode": "api_key"
+      }
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "alibaba": {
+        "baseUrl": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "qwen3.8-max",
+            "name": "Qwen3.8 Max",
+            "reasoning": true,
+            "contextWindow": 262144,
+            "maxTokens": 32768
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "alibaba/qwen3.8-max",
+        "fallbacks": [
+          "openrouter/auto"
+        ]
+      },
+      "models": {
+        "openrouter/auto": {
+          "alias": "OpenRouter"
+        },
+        "alibaba/qwen3.8-max": {
+          "alias": "Qwen"
+        }
+      },
+      "workspace": "/Users/placeholder/.openclaw/workspace",
+      "maxConcurrent": 4
+    },
+    "list": [
+      {
+        "id": "main",
+        "model": "openrouter/auto"
+      }
+    ]
+  },
+  "tools": {
+    "profile": "coding",
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "gemini"
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "botToken": "fixture-telegram-credential"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "fixture-gateway-credential"
+    }
+  },
+  "skills": {
+    "entries": {
+      "obsidian": {
+        "enabled": false
+      },
+      "spotify-player": {
+        "enabled": false
+      }
+    }
+  }
+}

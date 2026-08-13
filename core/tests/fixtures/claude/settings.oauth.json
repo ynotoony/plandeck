@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/env node /Users/placeholder/.tokentracker/bin/notify.cjs --source=claude"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/env node /Users/placeholder/.tokentracker/bin/notify.cjs --source=claude"
+          }
+        ]
+      }
+    ]
+  }
+}

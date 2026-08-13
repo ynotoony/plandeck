@@ -1,0 +1,14 @@
+agent:
+  max_turns: 60
+  reasoning_effort: xhigh
+  verbose: false
+terminal:
+  backend: local
+  timeout: 180
+display:
+  language: zh
+  streaming: true
+telegram:
+  model: qwen3.7-max
+  provider: alibaba
+_config_version: 33

@@ -1,0 +1,6 @@
+model_reasoning_effort = "high"
+disable_response_storage = true
+
+[desktop]
+followUpQueueMode = "queue"
+localeOverride = "zh-CN"

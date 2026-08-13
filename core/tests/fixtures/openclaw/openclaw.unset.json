@@ -1,0 +1,14 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.6.11"
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/Users/placeholder/.openclaw/workspace",
+      "maxConcurrent": 4
+    }
+  },
+  "tools": {
+    "profile": "coding"
+  }
+}

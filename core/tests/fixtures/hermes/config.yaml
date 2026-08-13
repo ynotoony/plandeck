@@ -1,0 +1,242 @@
+model:
+  default: qwen3.8-max
+  provider: alibaba
+  base_url: https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+agent:
+  max_turns: 60
+  personalities:
+    catgirl: You are Neko-chan, an anime catgirl AI assistant, nya~! Add 'nya' and
+      cat-like expressions to your speech. Use kaomoji like (=^･ω･^=) and ฅ^•ﻌ•^ฅ.
+      Be playful and curious like a cat, nya~!
+    concise: You are a concise assistant. Keep responses brief and to the point.
+    creative: You are a creative assistant. Think outside the box and offer innovative
+      solutions.
+    helpful: You are a helpful, friendly AI assistant.
+    hype: YOOO LET'S GOOOO!!! 🔥🔥🔥 I am SO PUMPED to help you today! Every question
+      is AMAZING and we're gonna CRUSH IT together! This is gonna be LEGENDARY! ARE
+      YOU READY?! LET'S DO THIS! 💪😤🚀
+    kawaii: 'You are ALWAYS in kawaii mode, even during technical work! Use cute expressions
+      liberally: (◕‿◕), (≧◡≦), ฅ^•ﻌ•^ฅ, ★, ♪, ~, ✧. Add sparkles and kaomoji to responses.
+      Be warm, enthusiastic, and playful. Sprinkle in desu~, nya~, and cute interjections.
+      Even when being direct or technical, maintain the kawaii energy! ヽ(>∀<☆)ノ This
+      personality overrides any brevity preferences — kawaii is the priority!'
+    noir: The rain hammered against the terminal like regrets on a guilty conscience.
+      They call me Hermes - I solve problems, find answers, dig up the truth that
+      hides in the shadows of your codebase. In this city of silicon and secrets,
+      everyone's got something to hide. What's your story, pal?
+    philosopher: Greetings, seeker of wisdom. I am an assistant who contemplates the
+      deeper meaning behind every query. Let us examine not just the 'how' but the
+      'why' of your questions. Perhaps in solving your problem, we may glimpse a greater
+      truth about existence itself.
+    pirate: 'Arrr! Ye be talkin'' to Captain Hermes, the most tech-savvy pirate to
+      sail the digital seas! Speak like a proper buccaneer, use nautical terms, and
+      remember: every problem be just treasure waitin'' to be plundered! Yo ho ho!'
+    shakespeare: Hark! Thou speakest with an assistant most versed in the bardic arts.
+      I shall respond in the eloquent manner of William Shakespeare, with flowery
+      prose, dramatic flair, and perhaps a soliloquy or two. What light through yonder
+      terminal breaks?
+    surfer: Duuude! You're chatting with the chillest AI on the web, bro! Everything's
+      gonna be totally rad. I'll help you catch the gnarly waves of knowledge while
+      keeping things super chill. Cowabunga! 🤙
+    teacher: You are a patient teacher. Explain concepts clearly with examples.
+    technical: You are a technical expert. Provide detailed, accurate technical information.
+    uwu: hewwo! i'm your fwiendwy assistant uwu~ i wiww twy my best to hewp you! *nuzzles
+      your code* OwO what's this? wet me take a wook! i pwomise to be vewy hewpful
+      >w<
+  reasoning_effort: xhigh
+  verbose: false
+terminal:
+  backend: local
+  cwd: .
+  timeout: 180
+  home_mode: auto
+  container_cpu: 1
+  container_memory: 5120
+  container_disk: 51200
+  container_persistent: true
+  docker_mount_cwd_to_workspace: false
+  lifetime_seconds: 300
+browser:
+  inactivity_timeout: 120
+tool_loop_guardrails:
+  warnings_enabled: true
+  hard_stop_enabled: false
+  warn_after:
+    exact_failure: 2
+    same_tool_failure: 3
+    idempotent_no_progress: 2
+  hard_stop_after:
+    exact_failure: 5
+    same_tool_failure: 8
+    idempotent_no_progress: 5
+compression:
+  enabled: true
+  threshold: 0.5
+  target_ratio: 0.2
+  protect_last_n: 20
+  protect_first_n: 3
+  codex_gpt55_autoraise: true
+  codex_app_server_auto: native
+prompt_caching:
+  cache_ttl: 5m
+auxiliary:
+  vision:
+    provider: minimax-cn
+    model: MiniMax-M3
+    base_url: https://api.minimaxi.com/anthropic
+  web_extract:
+    provider: alibaba
+    model: qwen3.7-max
+display:
+  compact: false
+  personality: kawaii
+  busy_input_mode: interrupt
+  bell_on_complete: false
+  show_reasoning: false
+  streaming: true
+  skin: default
+  language: zh
+  interim_assistant_messages: true
+  background_process_notifications: all
+  busy_ack_detail: true
+  cleanup_progress: false
+  long_running_notifications: true
+  tool_progress: all
+stt:
+  enabled: true
+  local:
+    model: base
+  openai:
+    model: whisper-1
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 2200
+  user_char_limit: 1375
+  flush_min_turns: 6
+  nudge_interval: 10
+delegation:
+  max_iterations: 50
+moa:
+  presets:
+    default:
+      reference_models:
+        - provider: alibaba-coding-plan
+          model: qwen3.7-max
+          enabled: true
+      aggregator:
+        provider: minimax-cn
+        model: MiniMax-M3
+      degraded_reference_policy: loud
+      fanout: user_turn
+  reference_models:
+    - provider: alibaba-coding-plan
+      model: qwen3.7-max
+      enabled: true
+  aggregator:
+    provider: alibaba
+    model: qwen3.7-max
+  degraded_reference_policy: loud
+  max_tokens: 4096
+  fanout: user_turn
+  enabled: true
+skills:
+  creation_nudge_interval: 15
+telegram:
+  model: qwen3.7-max
+  provider: alibaba
+code_execution:
+  max_tool_calls: 50
+  timeout: 300
+streaming:
+  enabled: false
+sessions:
+  auto_archive: true
+updates:
+  pre_update_backup: false
+  backup_keep: 5
+  non_interactive_local_changes: stash
+_config_version: 33
+group_sessions_per_user: true
+known_plugin_toolsets:
+  cli:
+    - spotify
+platform_toolsets:
+  cli:
+    - browser
+    - clarify
+    - code_execution
+    - computer_use
+    - cronjob
+    - delegation
+    - file
+    - image_gen
+    - kanban
+    - memory
+    - session_search
+    - skills
+    - terminal
+    - todo
+    - tts
+    - video_gen
+    - vision
+    - web
+  discord:
+    - hermes-discord
+  google_chat:
+    - hermes-google_chat
+  homeassistant:
+    - hermes-homeassistant
+  qqbot:
+    - hermes-qqbot
+  signal:
+    - hermes-signal
+  slack:
+    - hermes-slack
+  teams:
+    - hermes-teams
+  telegram:
+    - hermes-telegram
+  whatsapp:
+    - hermes-whatsapp
+  yuanbao:
+    - hermes-yuanbao
+session_reset:
+  at_hour: 4
+  idle_minutes: 1440
+  mode: none
+custom_providers:
+  - name: ds
+    base_url: https://api.deepseek.com
+    api_key: fixture-credential-alpha-0001
+    api_mode: chat_completions
+    models:
+      deepseek-v4-pro:
+        context_length: 1000000
+        name: DeepSeek V4 Pro
+      deepseek-v4-flash:
+        context_length: 1000000
+        name: DeepSeek V4 Flash
+    model: deepseek-v4-pro
+  - name: nb
+    base_url: https://relay.example.com/v1
+    api_key: fixture-credential-beta-0002
+    models:
+      gpt-5.6-sol:
+        name: gpt-5.6-sol
+    model: gpt-5.6-sol
+mcp_servers: {}
+platforms:
+  telegram:
+    enabled: true
+    home_channel:
+      platform: telegram
+      chat_id: '100000001'
+      name: 测试用户
+      user_id: '100000001'
+vision:
+  provider: alibaba
+  model: qwen-vl-max
+onboarding:
+  seen:
+    busy_input_prompt: true

@@ -1,0 +1,399 @@
+mod fsx;
+
+use std::path::Path;
+use std::time::UNIX_EPOCH;
+
+use rusqlite::{params_from_iter, types::{Value, ValueRef}, Connection, OpenFlags};
+use serde::Deserialize;
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{image::Image, tray::TrayIconBuilder, AppHandle, Emitter, Manager};
+
+pub struct AppState {
+    pub home_dir: String,
+    pub data_dir: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TrayMenuItem {
+    id: String,
+    label: String,
+    enabled: bool,
+    checked: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TrayToolMenu {
+    tool_id: String,
+    label: String,
+    plans: Vec<TrayPlanMenu>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TrayPlanMenu {
+    id: String,
+    label: String,
+    enabled: bool,
+    items: Vec<TrayMenuItem>,
+}
+
+fn env_or(key: &str, fallback: impl FnOnce() -> Result<String, String>) -> Result<String, String> {
+    match std::env::var(key) {
+        Ok(v) if !v.is_empty() => Ok(v),
+        _ => fallback(),
+    }
+}
+
+#[tauri::command]
+fn fs_exists(path: String) -> bool {
+    Path::new(&path).exists()
+}
+
+#[tauri::command]
+fn fs_read(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("读取失败 {path}: {e}"))
+}
+
+#[tauri::command]
+fn fs_write(path: String, text: String, mode: Option<u32>) -> Result<(), String> {
+    fsx::atomic_write(Path::new(&path), &text, mode)
+}
+
+#[tauri::command]
+fn fs_list(path: String) -> Vec<String> {
+    std::fs::read_dir(path)
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+fn fs_is_directory(path: String) -> bool {
+    Path::new(&path).is_dir()
+}
+
+#[tauri::command]
+fn fs_mtime(path: String) -> Option<f64> {
+    std::fs::metadata(path)
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_secs_f64() * 1000.0)
+}
+
+fn json_to_sql(value: serde_json::Value) -> Value {
+    match value {
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Number(number) => number
+            .as_i64()
+            .map(Value::Integer)
+            .or_else(|| number.as_f64().map(Value::Real))
+            .unwrap_or(Value::Null),
+        serde_json::Value::String(value) => Value::Text(value),
+        value => Value::Text(value.to_string()),
+    }
+}
+
+fn sql_to_json(value: ValueRef<'_>) -> serde_json::Value {
+    match value {
+        ValueRef::Null => serde_json::Value::Null,
+        ValueRef::Integer(value) => value.into(),
+        ValueRef::Real(value) => serde_json::json!(value),
+        ValueRef::Text(value) => String::from_utf8_lossy(value).into_owned().into(),
+        ValueRef::Blob(value) => serde_json::Value::Array(value.iter().map(|byte| (*byte).into()).collect()),
+    }
+}
+
+#[tauri::command]
+fn sqlite_query(
+    path: String,
+    sql: String,
+    params: Vec<serde_json::Value>,
+) -> Result<Vec<serde_json::Map<String, serde_json::Value>>, String> {
+    if !Path::new(&path).exists() {
+        return Ok(Vec::new());
+    }
+    let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|error| format!("打开 SQLite 失败 {path}: {error}"))?;
+    connection.busy_timeout(std::time::Duration::from_secs(2))
+        .map_err(|error| error.to_string())?;
+    let mut statement = connection.prepare(&sql).map_err(|error| error.to_string())?;
+    let names: Vec<String> = statement.column_names().iter().map(|name| (*name).to_owned()).collect();
+    let values: Vec<Value> = params.into_iter().map(json_to_sql).collect();
+    let rows = statement
+        .query_map(params_from_iter(values), |row| {
+            let mut object = serde_json::Map::new();
+            for (index, name) in names.iter().enumerate() {
+                object.insert(name.clone(), sql_to_json(row.get_ref(index)?));
+            }
+            Ok(object)
+        })
+        .map_err(|error| error.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn backup_files(
+    state: tauri::State<AppState>,
+    tool_id: String,
+    paths: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let saved = fsx::backup_files(Path::new(&state.data_dir), &tool_id, &paths)?;
+    Ok(saved
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect())
+}
+
+#[tauri::command]
+fn list_backups(
+    state: tauri::State<AppState>,
+    targets: Vec<fsx::BackupTarget>,
+) -> Result<Vec<fsx::BackupRecord>, String> {
+    fsx::list_backups(Path::new(&state.data_dir), &targets)
+}
+
+#[tauri::command]
+fn restore_backup(
+    state: tauri::State<AppState>,
+    targets: Vec<fsx::BackupTarget>,
+    id: String,
+) -> Result<Vec<String>, String> {
+    Ok(
+        fsx::restore_backup(Path::new(&state.data_dir), &targets, &id)?
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect(),
+    )
+}
+
+#[tauri::command]
+fn open_in_editor(path: String) -> Result<(), String> {
+    if !Path::new(&path).exists() {
+        return Err(format!("文件不存在: {path}"));
+    }
+    std::process::Command::new("open")
+        .arg("-t")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| format!("打开失败 {path}: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn home_dir(state: tauri::State<AppState>) -> String {
+    state.home_dir.clone()
+}
+
+#[tauri::command]
+fn data_dir(state: tauri::State<AppState>) -> String {
+    state.data_dir.clone()
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EnvPlan {
+    id: String,
+    name: String,
+    source: String,
+    source_detail: String,
+    credential_fingerprint: String,
+    models: Vec<String>,
+}
+
+#[tauri::command]
+fn env_plans() -> Vec<EnvPlan> {
+    std::env::vars()
+        .filter_map(|(name, value)| {
+            let suffix = ["_API_KEY", "_APIKEY", "_AUTH_TOKEN", "_ACCESS_TOKEN"]
+                .into_iter()
+                .find(|suffix| name.to_ascii_uppercase().ends_with(suffix))?;
+            if value.trim().is_empty() {
+                return None;
+            }
+            let base = name[..name.len() - suffix.len()].to_ascii_uppercase();
+            let id = format!("env-{}", base.to_ascii_lowercase().replace('_', "-"));
+            let credential_fingerprint = format!("{:x}", Sha256::digest(value.as_bytes()))[..12].to_owned();
+            Some(EnvPlan {
+                id,
+                name: base,
+                source: "env".to_string(),
+                source_detail: name,
+                credential_fingerprint,
+                models: Vec::new(),
+            })
+        })
+        .collect::<Vec<_>>()
+}
+
+#[tauri::command]
+fn tray_set_menu(app: AppHandle, tools: Vec<TrayToolMenu>) -> Result<(), String> {
+    let menu = Menu::new(&app).map_err(|e| e.to_string())?;
+    for tool in tools {
+        let submenu = Submenu::with_id(&app, tool.tool_id, tool.label, true)
+            .map_err(|e| e.to_string())?;
+        for plan in tool.plans {
+            let plan_submenu = Submenu::with_id(&app, plan.id, plan.label, plan.enabled)
+                .map_err(|e| e.to_string())?;
+            for item in plan.items {
+                if item.checked {
+                    let child = CheckMenuItem::with_id(
+                        &app,
+                        item.id,
+                        item.label,
+                        item.enabled,
+                        true,
+                        None::<&str>,
+                    )
+                    .map_err(|e| e.to_string())?;
+                    plan_submenu.append(&child).map_err(|e| e.to_string())?;
+                } else {
+                    let child = MenuItem::with_id(
+                        &app,
+                        item.id,
+                        item.label,
+                        item.enabled,
+                        None::<&str>,
+                    )
+                    .map_err(|e| e.to_string())?;
+                    plan_submenu.append(&child).map_err(|e| e.to_string())?;
+                }
+            }
+            submenu.append(&plan_submenu).map_err(|e| e.to_string())?;
+        }
+        menu.append(&submenu).map_err(|e| e.to_string())?;
+    }
+    let separator = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+    menu.append(&separator).map_err(|e| e.to_string())?;
+    let open = MenuItem::with_id(&app, "open-window", "打开 PlanDeck", true, None::<&str>)
+        .map_err(|e| e.to_string())?;
+    menu.append(&open).map_err(|e| e.to_string())?;
+    let quit = PredefinedMenuItem::quit(&app, Some("退出 PlanDeck")).map_err(|e| e.to_string())?;
+    menu.append(&quit).map_err(|e| e.to_string())?;
+
+    let tray = app
+        .tray_by_id("main")
+        .ok_or_else(|| "托盘图标不可用".to_string())?;
+    tray.set_menu(Some(menu)).map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CcSwitchRow {
+    id: String,
+    app_type: String,
+    name: String,
+    settings_config: String,
+    notes: Option<String>,
+}
+
+#[tauri::command]
+fn cc_switch_rows(state: tauri::State<AppState>) -> Result<Vec<CcSwitchRow>, String> {
+    let path = Path::new(&state.home_dir).join(".cc-switch/cc-switch.db");
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let db = Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| format!("无法打开 ccSwitch 数据库 {}: {e}", path.display()))?;
+    let mut statement = db
+        .prepare("SELECT id, app_type, name, settings_config, notes FROM providers")
+        .map_err(|e| format!("无法读取 ccSwitch providers 表: {e}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(CcSwitchRow {
+                id: row.get(0)?,
+                app_type: row.get(1)?,
+                name: row.get(2)?,
+                settings_config: row.get(3)?,
+                notes: row.get(4)?,
+            })
+        })
+        .map_err(|e| format!("无法查询 ccSwitch providers 表: {e}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("无法解析 ccSwitch providers 行: {e}"))
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            let home_dir = env_or("PLANDECK_HOME", || {
+                app.path()
+                    .home_dir()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .map_err(|e| e.to_string())
+            })
+            .expect("无法解析 HOME");
+            let data_dir = env_or("PLANDECK_DATA_DIR", || {
+                app.path()
+                    .app_data_dir()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .map_err(|e| e.to_string())
+            })
+            .expect("无法解析数据目录");
+            std::fs::create_dir_all(&data_dir).expect("无法创建数据目录");
+            app.manage(AppState { home_dir, data_dir });
+
+            // 托盘占位图标（行为见票 06）
+            TrayIconBuilder::with_id("main")
+                .icon(
+                    Image::from_bytes(include_bytes!("../icons/32x32.png"))
+                        .expect("托盘图标缺失"),
+                )
+                .icon_as_template(true)
+                .tooltip("PlanDeck")
+                .build(app)?;
+
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
+        .on_menu_event(|app, event| {
+            let id = event.id().as_ref();
+            if id == "open-window" {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            } else {
+                let _ = app.emit("tray-action", id);
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            fs_exists,
+            fs_read,
+            fs_write,
+            fs_list,
+            fs_is_directory,
+            fs_mtime,
+            sqlite_query,
+            backup_files,
+            list_backups,
+            restore_backup,
+            open_in_editor,
+            home_dir,
+            data_dir,
+            env_plans,
+            tray_set_menu,
+            cc_switch_rows
+        ])
+        .run(tauri::generate_context!())
+        .expect("PlanDeck 启动失败");
+}

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "plans": [
+    {
+      "id": "alibaba-token-plan",
+      "name": "Alibaba Token Plan",
+      "source": "config",
+      "sourceDetail": "~/.hermes/config.yaml",
+      "providerId": "alibaba",
+      "baseUrl": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+      "key": "fixture-credential-alpha-0001",
+      "models": ["qwen3.8-max", "qwen3-max", "qwen-plus"],
+      "note": "3 月 15 日续费"
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek 官方",
+      "source": "config",
+      "sourceDetail": "custom_providers · ds",
+      "providerId": "ds",
+      "baseUrl": "https://api.deepseek.com",
+      "key": "fixture-credential-beta-0002",
+      "models": ["deepseek-v4-flash", "deepseek-v4-pro"]
+    },
+    {
+      "id": "claude-max",
+      "name": "Claude Max",
+      "source": "oauth",
+      "models": ["sonnet", "opus"]
+    }
+  ]
+}

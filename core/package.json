@@ -1,0 +1,28 @@
+{
+  "name": "@plandeck/core",
+  "version": "0.1.0",
+  "description": "Core library for PlanDeck local AI subscription management.",
+  "license": "MIT",
+  "repository": "https://github.com/ynotoony/plandeck",
+  "homepage": "https://github.com/ynotoony/plandeck",
+  "bugs": { "url": "https://github.com/ynotoony/plandeck/issues" },
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "fixtures:generate": "node scripts/generate-fixture-databases.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1",
+    "smol-toml": "^1.8.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

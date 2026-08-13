@@ -1,0 +1,5 @@
+{
+  // 本机默认模型，provider 块在 opencode.json 里
+  "$schema": "https://opencode.ai/config.json",
+  "model": "alibaba/qwen3.8-max", // provider/model 格式
+}

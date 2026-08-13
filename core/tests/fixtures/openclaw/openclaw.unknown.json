@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.6.11",
+    "lastTouchedAt": "2026-07-02T03:29:30.437Z"
+  },
+  "auth": {
+    "profiles": {
+      "minimax:default": {
+        "provider": "minimax",
+        "mode": "api_key"
+      }
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "minimax": {
+        "baseUrl": "https://api.minimax.io/anthropic",
+        "api": "anthropic-messages",
+        "authHeader": true,
+        "models": [
+          {
+            "id": "MiniMax-M2.5-highspeed",
+            "name": "MiniMax M2.5 Highspeed",
+            "reasoning": true,
+            "contextWindow": 200000,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "minimax/MiniMax-M2.5-highspeed",
+        "fallbacks": [
+          "openrouter/auto"
+        ]
+      },
+      "workspace": "/Users/placeholder/.openclaw/workspace"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-08-10T12:00:00.000000",
+  "session_id": "20260810_100000_aaa111",
+  "reason": "data_inspection_failed",
+  "request": {
+    "method": "POST",
+    "url": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions",
+    "body": {
+      "model": "qwen3.8-max",
+      "messages": []
+    }
+  }
+}
