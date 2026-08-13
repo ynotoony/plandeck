@@ -41,7 +41,10 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
+          components: clippy
           targets: aarch64-apple-darwin
+      - run: npm ci
+        working-directory: core
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build

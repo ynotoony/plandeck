@@ -26,6 +26,8 @@ jobs:
         with:
           targets: aarch64-apple-darwin
       - run: npm ci
+        working-directory: core
+      - run: npm ci
         working-directory: app
       - run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
         working-directory: app
