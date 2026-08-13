@@ -22,7 +22,7 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: app/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.94.0
         with:
           targets: aarch64-apple-darwin
       - run: npm ci
