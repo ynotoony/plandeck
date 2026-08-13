@@ -21,6 +21,7 @@ export function createMockBackend({ homeDir, dataDir, envVars: initialEnvVars = 
   let trayTools = [];
   const eventHandlers = new Map();
   let envVars = initialEnvVars;
+  const planTestCalls = [];
 
   function localTimestamp() {
     const d = new Date();
@@ -176,6 +177,9 @@ export function createMockBackend({ homeDir, dataDir, envVars: initialEnvVars = 
               models: [],
             };
           });
+      case "test_plan":
+        planTestCalls.push({ baseUrl: args.baseUrl, key: args.key, model: args.model });
+        return { status: "available", message: "连接成功，模型可用（HTTP 200）" };
       default:
         throw new Error(`unknown command: ${cmd}`);
     }
@@ -228,5 +232,6 @@ export function createMockBackend({ homeDir, dataDir, envVars: initialEnvVars = 
     trayTools: () => trayTools,
     eventHandler: (event) => eventHandlers.get(event),
     setEnvVars: (next) => (envVars = next),
+    planTestCalls: () => planTestCalls,
   };
 }

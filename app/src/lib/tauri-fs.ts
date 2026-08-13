@@ -73,3 +73,12 @@ export function fetchCcSwitchRows(): Promise<CcSwitchRow[]> {
 export function fetchEnvPlans(): Promise<Plan[]> {
   return invoke<Plan[]>("env_plans");
 }
+
+export interface PlanTestResult {
+  status: "available" | "auth_failed" | "model_not_found" | "busy" | "service_error" | "timeout" | "error";
+  message: string;
+}
+
+export function testPlan(baseUrl: string, key: string, model: string): Promise<PlanTestResult> {
+  return invoke<PlanTestResult>("test_plan", { baseUrl, key, model });
+}

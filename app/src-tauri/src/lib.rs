@@ -3,7 +3,11 @@ mod fsx;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
-use rusqlite::{params_from_iter, types::{Value, ValueRef}, Connection, OpenFlags};
+use rusqlite::{
+    params_from_iter,
+    types::{Value, ValueRef},
+    Connection, OpenFlags,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -110,7 +114,9 @@ fn sql_to_json(value: ValueRef<'_>) -> serde_json::Value {
         ValueRef::Integer(value) => value.into(),
         ValueRef::Real(value) => serde_json::json!(value),
         ValueRef::Text(value) => String::from_utf8_lossy(value).into_owned().into(),
-        ValueRef::Blob(value) => serde_json::Value::Array(value.iter().map(|byte| (*byte).into()).collect()),
+        ValueRef::Blob(value) => {
+            serde_json::Value::Array(value.iter().map(|byte| (*byte).into()).collect())
+        }
     }
 }
 
@@ -125,10 +131,17 @@ fn sqlite_query(
     }
     let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|error| format!("打开 SQLite 失败 {path}: {error}"))?;
-    connection.busy_timeout(std::time::Duration::from_secs(2))
+    connection
+        .busy_timeout(std::time::Duration::from_secs(2))
         .map_err(|error| error.to_string())?;
-    let mut statement = connection.prepare(&sql).map_err(|error| error.to_string())?;
-    let names: Vec<String> = statement.column_names().iter().map(|name| (*name).to_owned()).collect();
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| error.to_string())?;
+    let names: Vec<String> = statement
+        .column_names()
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect();
     let values: Vec<Value> = params.into_iter().map(json_to_sql).collect();
     let rows = statement
         .query_map(params_from_iter(values), |row| {
@@ -139,7 +152,8 @@ fn sqlite_query(
             Ok(object)
         })
         .map_err(|error| error.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|error| error.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -211,6 +225,113 @@ struct EnvPlan {
     models: Vec<String>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PlanTestResult {
+    status: String,
+    message: String,
+}
+
+fn classify_plan_test_status(status: reqwest::StatusCode) -> (&'static str, &'static str) {
+    match status.as_u16() {
+        200..=299 => ("available", "连接成功，模型可用"),
+        401 | 403 => ("auth_failed", "鉴权失败，请检查 API key"),
+        404 => ("model_not_found", "接口或模型不存在"),
+        408 | 429 => ("busy", "服务暂时不可用或触发限流"),
+        500..=599 => ("service_error", "服务端错误"),
+        _ => ("error", "请求失败"),
+    }
+}
+
+fn valid_test_url(value: &str) -> bool {
+    let Ok(url) = reqwest::Url::parse(value) else {
+        return false;
+    };
+    if url.scheme() == "https" {
+        return true;
+    }
+    url.scheme() == "http" && matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"))
+}
+
+fn valid_completion_response(body: &serde_json::Value) -> bool {
+    body.get("choices")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|choices| !choices.is_empty())
+}
+
+#[tauri::command]
+async fn test_plan(base_url: String, key: String, model: String) -> Result<PlanTestResult, String> {
+    let base_url = base_url.trim().trim_end_matches('/');
+    let key = key.trim();
+    let model = model.trim();
+    if !valid_test_url(base_url) {
+        return Err(
+            "出于安全考虑，测试只允许 https:// 地址（localhost 可使用 http://）".to_string(),
+        );
+    }
+    if key.is_empty() {
+        return Err("此 Plan 没有可用的 API key".to_string());
+    }
+    if model.is_empty() {
+        return Err("请选择模型".to_string());
+    }
+
+    let response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|error| format!("创建测试请求失败: {error}"))?
+        .post(format!("{base_url}/chat/completions"))
+        .bearer_auth(key)
+        .json(&serde_json::json!({
+            "model": model,
+            "messages": [{"role": "user", "content": "Reply with OK."}],
+            "max_tokens": 1,
+        }))
+        .send()
+        .await;
+
+    let response = match response {
+        Ok(response) => response,
+        Err(error) if error.is_timeout() => {
+            return Ok(PlanTestResult {
+                status: "timeout".to_string(),
+                message: "请求超时（10 秒）".to_string(),
+            });
+        }
+        Err(error) => {
+            return Ok(PlanTestResult {
+                status: "error".to_string(),
+                message: format!("连接失败: {error}"),
+            });
+        }
+    };
+    let status = response.status();
+    let (kind, message) = classify_plan_test_status(status);
+    if !status.is_success() {
+        return Ok(PlanTestResult {
+            status: kind.to_string(),
+            message: format!("{}（HTTP {}）", message, status.as_u16()),
+        });
+    }
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|_| "服务返回了无法识别的响应".to_string())?;
+    if !valid_completion_response(&body) {
+        return Ok(PlanTestResult {
+            status: "error".to_string(),
+            message: format!(
+                "响应不是有效的 Chat Completions 结果（HTTP {}）",
+                status.as_u16()
+            ),
+        });
+    }
+    Ok(PlanTestResult {
+        status: kind.to_string(),
+        message: format!("{}（HTTP {}）", message, status.as_u16()),
+    })
+}
+
 #[tauri::command]
 fn env_plans() -> Vec<EnvPlan> {
     std::env::vars()
@@ -223,7 +344,8 @@ fn env_plans() -> Vec<EnvPlan> {
             }
             let base = name[..name.len() - suffix.len()].to_ascii_uppercase();
             let id = format!("env-{}", base.to_ascii_lowercase().replace('_', "-"));
-            let credential_fingerprint = format!("{:x}", Sha256::digest(value.as_bytes()))[..12].to_owned();
+            let credential_fingerprint =
+                format!("{:x}", Sha256::digest(value.as_bytes()))[..12].to_owned();
             Some(EnvPlan {
                 id,
                 name: base,
@@ -240,8 +362,8 @@ fn env_plans() -> Vec<EnvPlan> {
 fn tray_set_menu(app: AppHandle, tools: Vec<TrayToolMenu>) -> Result<(), String> {
     let menu = Menu::new(&app).map_err(|e| e.to_string())?;
     for tool in tools {
-        let submenu = Submenu::with_id(&app, tool.tool_id, tool.label, true)
-            .map_err(|e| e.to_string())?;
+        let submenu =
+            Submenu::with_id(&app, tool.tool_id, tool.label, true).map_err(|e| e.to_string())?;
         for plan in tool.plans {
             let plan_submenu = Submenu::with_id(&app, plan.id, plan.label, plan.enabled)
                 .map_err(|e| e.to_string())?;
@@ -258,14 +380,9 @@ fn tray_set_menu(app: AppHandle, tools: Vec<TrayToolMenu>) -> Result<(), String>
                     .map_err(|e| e.to_string())?;
                     plan_submenu.append(&child).map_err(|e| e.to_string())?;
                 } else {
-                    let child = MenuItem::with_id(
-                        &app,
-                        item.id,
-                        item.label,
-                        item.enabled,
-                        None::<&str>,
-                    )
-                    .map_err(|e| e.to_string())?;
+                    let child =
+                        MenuItem::with_id(&app, item.id, item.label, item.enabled, None::<&str>)
+                            .map_err(|e| e.to_string())?;
                     plan_submenu.append(&child).map_err(|e| e.to_string())?;
                 }
             }
@@ -350,8 +467,7 @@ pub fn run() {
             // 托盘占位图标（行为见票 06）
             TrayIconBuilder::with_id("main")
                 .icon(
-                    Image::from_bytes(include_bytes!("../icons/32x32.png"))
-                        .expect("托盘图标缺失"),
+                    Image::from_bytes(include_bytes!("../icons/32x32.png")).expect("托盘图标缺失"),
                 )
                 .icon_as_template(true)
                 .tooltip("PlanDeck")
@@ -391,9 +507,60 @@ pub fn run() {
             home_dir,
             data_dir,
             env_plans,
+            test_plan,
             tray_set_menu,
             cc_switch_rows
         ])
         .run(tauri::generate_context!())
         .expect("PlanDeck 启动失败");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{classify_plan_test_status, valid_completion_response, valid_test_url};
+
+    #[test]
+    fn plan_test_statuses_are_user_facing_categories() {
+        assert_eq!(
+            classify_plan_test_status(reqwest::StatusCode::OK).0,
+            "available"
+        );
+        assert_eq!(
+            classify_plan_test_status(reqwest::StatusCode::UNAUTHORIZED).0,
+            "auth_failed"
+        );
+        assert_eq!(
+            classify_plan_test_status(reqwest::StatusCode::NOT_FOUND).0,
+            "model_not_found"
+        );
+        assert_eq!(
+            classify_plan_test_status(reqwest::StatusCode::TOO_MANY_REQUESTS).0,
+            "busy"
+        );
+        assert_eq!(
+            classify_plan_test_status(reqwest::StatusCode::BAD_GATEWAY).0,
+            "service_error"
+        );
+    }
+
+    #[test]
+    fn plan_test_url_requires_tls_except_localhost() {
+        assert!(valid_test_url("https://api.example.com/v1"));
+        assert!(valid_test_url("http://localhost:3000/v1"));
+        assert!(!valid_test_url("http://localhost.example.com/v1"));
+        assert!(!valid_test_url("http://api.example.com/v1"));
+    }
+
+    #[test]
+    fn plan_test_requires_a_completion_choice() {
+        assert!(valid_completion_response(
+            &serde_json::json!({ "choices": [{}] })
+        ));
+        assert!(!valid_completion_response(
+            &serde_json::json!({ "error": "bad key" })
+        ));
+        assert!(!valid_completion_response(
+            &serde_json::json!({ "choices": [] })
+        ));
+    }
 }
