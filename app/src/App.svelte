@@ -17,6 +17,7 @@
   import SwitchModal from "./components/SwitchModal.svelte";
   import ToolDrawer from "./components/ToolDrawer.svelte";
   import PlanEditor from "./components/PlanEditor.svelte";
+  import PlanTestModal from "./components/PlanTestModal.svelte";
   import type { Plan } from "@plandeck/core";
 
   const TABS: [string, string][] = [
@@ -38,6 +39,7 @@
   let scanning = $state(false);
   let refreshing = $state(false);
   let editingPlan = $state<Plan | null | undefined>(undefined);
+  let testingPlan = $state<Plan | null>(null);
   let collapsedCascadeNodes = $state(new Set<string>());
 
   const rows = $derived(deriveDefaultRows(appState.tools, appState.catalog));
@@ -93,6 +95,7 @@
         switchToolId = null;
         drawerToolId = null;
         editingPlan = undefined;
+        testingPlan = null;
       }
     };
     window.addEventListener("focus", onFocus);
@@ -293,8 +296,13 @@
     </thead>
     <tbody>
       {#each planRows as row (row.plan.id)}
-        <tr data-plan={row.plan.id} onclick={() => (editingPlan = row.plan)}>
-          <td><b>{row.plan.name}</b>{#if row.plan.note}<div class="small dim">{row.plan.note}</div>{/if}</td>
+         <tr data-plan={row.plan.id} onclick={() => (editingPlan = row.plan)}>
+           <td>
+             <b>{row.plan.name}</b>{#if row.plan.note}<div class="small dim">{row.plan.note}</div>{/if}
+             {#if row.plan.baseUrl && row.plan.key && row.plan.models.length}
+               <button class="key-toggle plan-test-button" onclick={(event) => { event.stopPropagation(); testingPlan = row.plan; }}>测试可用性</button>
+             {/if}
+           </td>
           <td><span class="badge b-dim">{row.plan.source}</span><div class="small dim source-detail">{row.plan.sourceDetail ?? "—"}</div></td>
           <td class="mono">
             {#if row.plan.key}
@@ -351,6 +359,9 @@
 {/if}
 {#if editingPlan !== undefined}
   <PlanEditor plan={editingPlan} onDone={() => (editingPlan = undefined)} />
+{/if}
+{#if testingPlan}
+  <PlanTestModal plan={testingPlan} onDone={() => (testingPlan = null)} />
 {/if}
 
 <div id="toast" class={toastState.kind} hidden={!toastState.visible}>{toastState.msg}</div>

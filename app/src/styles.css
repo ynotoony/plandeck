@@ -311,6 +311,24 @@ tr[data-tool]:hover td {
   font: inherit;
   font-size: 11px;
 }
+.plan-test-button {
+  display: block;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.plan-test-result {
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.plan-test-result.status-available { color: var(--green); border-color: var(--green); }
+.plan-test-result.status-auth_failed,
+.plan-test-result.status-model_not_found,
+.plan-test-result.status-error,
+.plan-test-result.status-timeout,
+.plan-test-result.status-busy,
+.plan-test-result.status-service_error { color: var(--red); border-color: var(--red); }
 .first-run-backdrop {
   position: fixed;
   inset: 0;

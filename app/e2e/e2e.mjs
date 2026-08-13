@@ -178,6 +178,22 @@ try {
   check("Plan 清单保留 ccSwitch 导入入口", await page.getByRole("button", { name: "导入 ccSwitch" }).isVisible());
   const envPlan = page.locator("tr[data-plan='env-minimax']");
   check("env Plan 在 init 后显示变量来源", (await envPlan.innerText()).includes("env") && (await envPlan.innerText()).includes("MINIMAX_API_KEY"));
+  const planRow = page.locator("tr[data-plan='alibaba-token-plan']");
+  const backupsBeforePlanTest = backend.listBackupRecords().length;
+  await planRow.getByRole("button", { name: "测试可用性" }).click();
+  const planTestModal = page.getByRole("dialog", { name: "测试 Plan Alibaba Token Plan" });
+  await planTestModal.waitFor();
+  check("Plan 测试默认选择第一个模型", await planTestModal.locator("select").inputValue() === "qwen3.8-max");
+  await planTestModal.locator("select").selectOption("qwen3-max");
+  await planTestModal.getByRole("button", { name: "开始测试" }).click();
+  await planTestModal.getByText("连接成功，模型可用（HTTP 200）").waitFor();
+  check(
+    "Plan 测试可切换模型并返回成功",
+    backend.planTestCalls().at(-1)?.model === "qwen3-max",
+  );
+  check("Plan 测试不创建备份", backend.listBackupRecords().length === backupsBeforePlanTest);
+  check("Plan 测试弹窗使用 dialog 语义", (await planTestModal.getAttribute("open")) !== null);
+  await planTestModal.getByRole("button", { name: "关闭" }).click();
   const maskedKey = await page.locator("tr[data-plan='alibaba-token-plan'] td").nth(2).innerText();
   check("Plan key 默认打码", maskedKey.includes("fix…0001") && !maskedKey.includes("fixture-credential-alpha"), maskedKey);
   await page.getByRole("button", { name: "显示" }).first().click();
