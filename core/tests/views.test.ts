@@ -247,8 +247,8 @@ describe("托盘菜单推导（默认模型视图的菜单形态）", () => {
   });
 });
 
-describe("默认模型表（5 个 Adapter 全量集成）", () => {
-  it("显示全部 5 个工具，状态 badge 全对", async () => {
+describe("默认模型表（7 个 Adapter 全量集成）", () => {
+  it("显示全部 7 个工具，状态 badge 全对", async () => {
     const home = makeTempHome();
     installHermesFixture(home, "config.yaml");
     installToolFixture(home, "opencode", "opencode.json", ".config/opencode/opencode.json");
@@ -264,6 +264,8 @@ describe("默认模型表（5 个 Adapter 全量集成）", () => {
       "openclaw",
       "codex",
       "claude",
+      "zcode",
+      "kimi",
     ]);
 
     const states: ToolState[] = [];
@@ -295,6 +297,8 @@ describe("默认模型表（5 个 Adapter 全量集成）", () => {
         plan: "Alibaba Token Plan",
       },
       { toolId: "claude", status: "oauth", defaultModel: undefined, plan: undefined },
+      { toolId: "zcode", status: "unset", defaultModel: undefined, plan: undefined },
+      { toolId: "kimi", status: "unset", defaultModel: undefined, plan: undefined },
     ]);
   });
 
