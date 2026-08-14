@@ -14,13 +14,6 @@ export const ZCODE_TOOL_ID = "zcode";
 
 export function createZcodeAdapter(ctx: AdapterContext): Adapter {
   const configPath = `${ctx.homeDir}/.zcode/v2/config.json`;
-  const legacyConfigPath = `${ctx.homeDir}/.zcode/cli/config.json`;
-
-  async function activeConfigPath(): Promise<string> {
-    if (await ctx.fs.exists(configPath)) return configPath;
-    if (await ctx.fs.exists(legacyConfigPath)) return legacyConfigPath;
-    return configPath;
-  }
 
   async function readDoc(path = configPath): Promise<Record<string, any> | null> {
     if (!(await ctx.fs.exists(path))) return null;
@@ -28,7 +21,7 @@ export function createZcodeAdapter(ctx: AdapterContext): Adapter {
   }
 
   async function readFragment(): Promise<ConfigFragment | null> {
-    const doc = await readDoc(await activeConfigPath());
+    const doc = await readDoc();
     const selected = str(doc?.model) ?? str(doc?.model?.main);
     if (!selected) return null;
     const active = splitProviderModel(selected);
@@ -46,7 +39,7 @@ export function createZcodeAdapter(ctx: AdapterContext): Adapter {
     return stateFromFragment(
       ZCODE_TOOL_ID,
       await readFragment(),
-      (await ctx.fs.exists(configPath)) || (await ctx.fs.exists(legacyConfigPath)),
+      await ctx.fs.exists(configPath),
       ctx.catalog,
     );
   }
@@ -54,8 +47,7 @@ export function createZcodeAdapter(ctx: AdapterContext): Adapter {
   async function planChange(plan: Plan, model: string): Promise<FileEdit[]> {
     requireBaseUrl(plan, "ZCode");
     const providerId = plan.providerId ?? slug(plan.name);
-    const path = await activeConfigPath();
-    const oldText = await readOrEmpty(ctx.fs, path);
+    const oldText = await readOrEmpty(ctx.fs, configPath);
     let newText = oldText || "{}\n";
     newText = jsonSet(
       newText,
@@ -68,7 +60,7 @@ export function createZcodeAdapter(ctx: AdapterContext): Adapter {
     newText = jsonSet(newText, ["provider", providerId, "models", model, "name"], model);
     newText = jsonSet(newText, ["model"], `${providerId}/${model}`);
     newText = jsonSet(newText, ["small_model"], `${providerId}/${model}`);
-    return [{ path, oldText, newText }];
+    return [{ path: configPath, oldText, newText }];
   }
 
   return {

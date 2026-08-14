@@ -6,13 +6,6 @@ export const KIMI_TOOL_ID = "kimi";
 
 export function createKimiAdapter(ctx: AdapterContext): Adapter {
   const configPath = `${ctx.homeDir}/.kimi/config.toml`;
-  const legacyConfigPath = `${ctx.homeDir}/.kimi-code/config.toml`;
-
-  async function activeConfigPath(): Promise<string> {
-    if (await ctx.fs.exists(configPath)) return configPath;
-    if (await ctx.fs.exists(legacyConfigPath)) return legacyConfigPath;
-    return configPath;
-  }
 
   async function readDoc(path = configPath): Promise<Record<string, any> | null> {
     if (!(await ctx.fs.exists(path))) return null;
@@ -20,7 +13,7 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
   }
 
   async function readFragment(): Promise<ConfigFragment | null> {
-    const doc = await readDoc(await activeConfigPath());
+    const doc = await readDoc();
     const alias = str(doc?.default_model);
     const selected = alias ? doc?.models?.[alias] : undefined;
     const model = str(selected?.model);
@@ -39,7 +32,7 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     return stateFromFragment(
       KIMI_TOOL_ID,
       await readFragment(),
-      (await ctx.fs.exists(configPath)) || (await ctx.fs.exists(legacyConfigPath)),
+      await ctx.fs.exists(configPath),
       ctx.catalog,
     );
   }
@@ -48,8 +41,7 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     requireBaseUrl(plan, "Kimi Code");
     const providerId = plan.providerId ?? slug(plan.name);
     const alias = `${providerId}/${model}`;
-    const path = await activeConfigPath();
-    const oldText = await readOrEmpty(ctx.fs, path);
+    const oldText = await readOrEmpty(ctx.fs, configPath);
     const doc = oldText ? (parse(oldText) as Record<string, any>) : {};
     doc.providers ??= {};
     doc.models ??= {};
@@ -66,7 +58,7 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
       max_context_size: doc.models[alias]?.max_context_size ?? 262144,
     };
     doc.default_model = alias;
-    return [{ path, oldText, newText: stringify(doc) }];
+    return [{ path: configPath, oldText, newText: stringify(doc) }];
   }
 
   return {
