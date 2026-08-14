@@ -49,7 +49,7 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
       ...doc.providers[providerId],
       type: plan.baseUrl!.includes("moonshot") || plan.baseUrl!.includes("kimi.com") ? "kimi" : "openai_legacy",
       base_url: plan.baseUrl,
-      api_key: plan.key,
+      ...(plan.key ? { api_key: plan.key } : {}),
     };
     doc.models[alias] = {
       ...doc.models[alias],

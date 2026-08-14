@@ -47,6 +47,18 @@ describe("ZCode adapter", () => {
     expect(doc.provider.other.options.apiKey).toBe(plan.key);
     expect(doc.permission.mode).toBe("build");
   });
+
+  it("preserves an existing key when the target plan has none", async () => {
+    const home = makeTempHome();
+    write(home, ".zcode/v2/config.json", JSON.stringify({
+      provider: { existing: { options: { apiKey: plan.key } } },
+      model: "existing/model",
+    }));
+    const adapter = createZcodeAdapter({ fs: nodeFs, sqlite: nodeSqlite, homeDir: home, catalog });
+    await applyFileEdits(await adapter.planChange({ ...plan, key: undefined, providerId: "existing" }, "next"), nodeFs);
+    const doc = parseJson(await nodeFs.read(`${home}/.zcode/v2/config.json`)) as any;
+    expect(doc.provider.existing.options.apiKey).toBe(plan.key);
+  });
 });
 
 describe("Kimi adapter", () => {
@@ -61,5 +73,14 @@ describe("Kimi adapter", () => {
     expect(doc.default_model).toBe("moonshot/kimi-k3");
     expect(doc.models["moonshot/kimi-k3"]).toMatchObject({ provider: "moonshot", model: "kimi-k3" });
     expect(doc.telemetry).toBe(false);
+  });
+
+  it("preserves an existing key when the target plan has none", async () => {
+    const home = makeTempHome();
+    write(home, ".kimi/config.toml", `[providers.moonshot]\ntype = "kimi"\nbase_url = "${plan.baseUrl}"\napi_key = "${plan.key}"\n`);
+    const adapter = createKimiAdapter({ fs: nodeFs, sqlite: nodeSqlite, homeDir: home, catalog });
+    await applyFileEdits(await adapter.planChange({ ...plan, key: undefined }, "next"), nodeFs);
+    const doc = parseToml(await nodeFs.read(`${home}/.kimi/config.toml`)) as any;
+    expect(doc.providers.moonshot.api_key).toBe(plan.key);
   });
 });

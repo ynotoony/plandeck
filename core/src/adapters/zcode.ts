@@ -56,7 +56,9 @@ export function createZcodeAdapter(ctx: AdapterContext): Adapter {
     );
     newText = jsonSet(newText, ["provider", providerId, "name"], plan.name);
     newText = jsonSet(newText, ["provider", providerId, "options", "baseURL"], plan.baseUrl);
-    newText = jsonSet(newText, ["provider", providerId, "options", "apiKey"], plan.key);
+    if (plan.key) {
+      newText = jsonSet(newText, ["provider", providerId, "options", "apiKey"], plan.key);
+    }
     newText = jsonSet(newText, ["provider", providerId, "models", model, "name"], model);
     newText = jsonSet(newText, ["model"], `${providerId}/${model}`);
     newText = jsonSet(newText, ["small_model"], `${providerId}/${model}`);
