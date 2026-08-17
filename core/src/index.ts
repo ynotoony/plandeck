@@ -14,3 +14,5 @@ export * from "./adapters/opencode.js";
 export * from "./adapters/openclaw.js";
 export * from "./adapters/codex.js";
 export * from "./adapters/claude.js";
+export * from "./adapters/zcode.js";
+export * from "./adapters/kimi.js";
