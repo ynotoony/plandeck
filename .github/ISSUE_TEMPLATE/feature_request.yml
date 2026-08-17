@@ -1,7 +1,7 @@
 name: Feature request
 description: Suggest an improvement to PlanDeck.
 title: "feature: "
-labels: [enhancement]
+labels: [enhancement, needs-triage]
 body:
   - type: textarea
     id: problem
@@ -11,9 +11,58 @@ body:
     validations:
       required: true
   - type: textarea
-    id: proposal
+    id: outcome
     attributes:
-      label: Proposal
+      label: Desired outcome
+      description: Describe the user-visible result rather than an implementation detail.
+    validations:
+      required: true
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Affected areas
+      options:
+        - label: Core / adapters / Catalog
+        - label: Desktop UI / interaction
+        - label: Native runtime / filesystem / tray
+        - label: CI / packaging / release
+        - label: Documentation
+        - label: Not sure
+  - type: dropdown
+    id: scope_shape
+    attributes:
+      label: Scope shape
+      options:
+        - One independently useful outcome
+        - Multiple independently useful outcomes
+        - Unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: unknowns
+    attributes:
+      label: Unknowns
+      options:
+        - Clear enough to implement
+        - Some technical or product unknowns
+        - Research or prototype needed first
+    validations:
+      required: true
+  - type: checkboxes
+    id: risks
+    attributes:
+      label: Risk flags
+      options:
+        - label: Persistent data, migration, or compatibility
+        - label: Credentials, permissions, security, or privacy
+        - label: External service, API, or operating-system behavior
+        - label: Packaging, versioning, rollout, or release notes
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List externally verifiable outcomes, one bullet per criterion.
+      placeholder: "- The user can ...\n- Existing ... still works"
     validations:
       required: true
   - type: textarea

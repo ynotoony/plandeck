@@ -29,14 +29,32 @@ jobs:
         working-directory: core
       - run: npm ci
         working-directory: app
+      - name: Validate release metadata
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          APP_VERSION="${VERSION#v}"
+          CONFIG_VERSION="$(node -p "require('./app/src-tauri/tauri.conf.json').version")"
+          test "$VERSION" = "v$CONFIG_VERSION"
+          test -f "docs/release-notes/$APP_VERSION.md"
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "NOTES_FILE=docs/release-notes/$APP_VERSION.md" >> "$GITHUB_ENV"
       - run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
         working-directory: app
         env:
           APPLE_SIGNING_IDENTITY: "-"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       - name: Create checksum
         run: |
           cd app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
           shasum -a 256 PlanDeck*.dmg > SHA256SUMS
+      - name: Locate updater artifact
+        run: |
+          UPDATER_PATH="$(find app/src-tauri/target/aarch64-apple-darwin/release/bundle -name '*.app.tar.gz' -print -quit)"
+          test -n "$UPDATER_PATH"
+          test -f "$UPDATER_PATH.sig"
+          echo "UPDATER_PATH=$UPDATER_PATH" >> "$GITHUB_ENV"
       - name: Publish pre-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -44,7 +62,29 @@ jobs:
         run: |
           gh release create "$VERSION" \
             app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/PlanDeck*.dmg \
+            "$UPDATER_PATH" \
+            "$UPDATER_PATH.sig" \
             app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/SHA256SUMS \
             --title "PlanDeck ${VERSION#v} Beta" \
-            --notes-file docs/release-notes/0.1.0.md \
+            --notes-file "$NOTES_FILE" \
             --prerelease
+      - name: Publish stable updater manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          node scripts/updater-manifest.mjs \
+            --version "$VERSION" \
+            --notes-file "$NOTES_FILE" \
+            --artifact "$UPDATER_PATH" \
+            --signature-file "$UPDATER_PATH.sig" \
+            --repository "$GITHUB_REPOSITORY" \
+            --output latest.json
+          if ! gh release view updater >/dev/null 2>&1; then
+            gh release create updater \
+              --title "PlanDeck updater feed" \
+              --notes "Machine-readable update metadata. Download application releases from the versioned entries." \
+              --prerelease \
+              --latest=false
+          fi
+          gh release upload updater latest.json --clobber
