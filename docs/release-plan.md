@@ -23,7 +23,7 @@ Theme: complete the first post-Beta compatibility and Tool-support changes while
 | Dependency compatibility | [PR #10](https://github.com/ynotoony/plandeck/pull/10) | In review | sha2 0.11 fingerprint compatibility. |
 | Vite/Svelte compatibility | [PR #11](https://github.com/ynotoony/plandeck/pull/11) | In review | Upgrade coupled Vite and Svelte plugin versions. |
 | Requirement intake and automatic sizing | [PR #13](https://github.com/ynotoony/plandeck/pull/13) | In review | Adds structured intake, size labels, splitting rules, and traceability. |
-| Release ledger and milestone synchronization | This PR | In review | Establishes the committed release record. |
+| Release ledger and milestone synchronization | [PR #14](https://github.com/ynotoony/plandeck/pull/14) | In review | Establishes the committed release record. |
 
 ### Entry Gates
 
