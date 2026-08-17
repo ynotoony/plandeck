@@ -23,6 +23,7 @@ Theme: complete the first post-Beta compatibility and Tool-support changes while
 | Dependency compatibility | [PR #10](https://github.com/ynotoony/plandeck/pull/10) | In review | sha2 0.11 fingerprint compatibility. |
 | Vite/Svelte compatibility | [PR #11](https://github.com/ynotoony/plandeck/pull/11) | In review | Upgrade coupled Vite and Svelte plugin versions. |
 | Requirement intake and automatic sizing | [PR #13](https://github.com/ynotoony/plandeck/pull/13) | Done | Adds structured intake, size labels, splitting rules, and traceability. Merged as `5b3187f`. |
+| [#16](https://github.com/ynotoony/plandeck/issues/16) GitHub Release auto-update | [PR #17](https://github.com/ynotoony/plandeck/pull/17) | In review | Adds release history, signed in-app updates, and optional startup checks. |
 
 ### Entry Gates
 
@@ -35,7 +36,7 @@ Theme: complete the first post-Beta compatibility and Tool-support changes while
 - Core tests, App checks, Workflow tests, and fixture/secret scan pass on every included PR and on `main`.
 - Desktop behavior changes receive local E2E verification.
 - Migration, privacy, compatibility, and packaging notes are complete.
-- The DMG and `SHA256SUMS` are produced by the release workflow.
+- The DMG, signed updater archive, updater signature, `latest.json`, and `SHA256SUMS` are produced by the release workflow.
 - The GitHub Release is published as a pre-release and every included requirement is marked `released`.
 
 ## Unscheduled

@@ -18,6 +18,7 @@ PlanDeck 把多个 AI Tool 和供应商配置集中到一个本地界面中，�
 - 在 Tool 抽屉中查看和恢复历史版本。
 - 通过 macOS 菜单栏托盘快速切换。
 - 支持跟随系统、浅色和深色主题。
+- 查看最近的 GitHub Release 更新记录并安装经签名验证的更新，可选择启动时自动检查。
 - 导入兼容的 ccSwitch 供应商历史。
 
 当前支持 Hermes、opencode、OpenClaw、Codex CLI 和 Claude Code。
@@ -45,6 +46,8 @@ PlanDeck 采用本地优先设计：
 从 [GitHub Releases](https://github.com/ynotoony/plandeck/releases) 下载最新 `.dmg`。首个 Beta 仅支持 Apple Silicon，且未签名。
 
 未签名版本首次启动可能被 macOS 拦截。确认校验和和发布来源可信后，可在 Finder 中按住 Control 点击应用并选择“打开”，或在“系统设置 -> 隐私与安全性”中允许打开。
+
+安装后可在 PlanDeck 内检查新版本或查看最近的 Release Notes。更新包在安装前使用 PlanDeck 的 Tauri updater 公钥验证；该完整性签名与 Apple Developer ID 签名及公证是两个独立机制。
 
 ## 从源码运行
 

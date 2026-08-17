@@ -34,6 +34,20 @@ const backend = createMockBackend({
   homeDir: HOME_DIR,
   dataDir: DATA_DIR,
   envVars: { MINIMAX_API_KEY: "minimax-e2e-key" },
+  update: {
+    version: "0.2.0",
+    date: "2026-08-17T12:00:00Z",
+    body: "Adds signed GitHub Release updates.",
+  },
+  releaseHistory: [
+    {
+      version: "v0.1.0",
+      name: "PlanDeck 0.1.0 Beta",
+      body: "Initial Apple Silicon macOS Beta.",
+      publishedAt: "2026-08-13T12:00:00Z",
+      prerelease: true,
+    },
+  ],
 });
 const server = await backend.start(MOCK_PORT);
 
@@ -99,6 +113,36 @@ try {
   await page.goto(VITE_URL);
 
   check("非首启不显示引导", (await page.locator(".first-run").count()) === 0);
+  await page.getByRole("button", { name: "应用更新" }).click();
+  const updateDialog = page.getByRole("dialog", { name: "应用更新" });
+  await updateDialog.getByText("PlanDeck 0.2.0 已可更新。").waitFor();
+  await shot("00-update-dialog");
+  check("启动时默认检查更新", backend.updateCheckCount() === 1);
+  check(
+    "更新弹窗显示当前与可用版本",
+    (await updateDialog.innerText()).includes("0.1.0") && (await updateDialog.innerText()).includes("0.2.0"),
+  );
+  await updateDialog.getByRole("tab", { name: "更新记录" }).click();
+  await updateDialog.getByText("PlanDeck 0.1.0 Beta").waitFor();
+  check(
+    "更新记录显示版本、预发布状态和 Release Notes",
+    backend.releaseHistoryCount() === 1 &&
+      (await updateDialog.innerText()).includes("v0.1.0") &&
+      (await updateDialog.innerText()).includes("预发布") &&
+      (await updateDialog.innerText()).includes("Initial Apple Silicon macOS Beta."),
+  );
+  await shot("00-update-history");
+  await updateDialog.getByRole("tab", { name: "更新", exact: true }).click();
+  await updateDialog.getByLabel("启动时检查更新").uncheck();
+  check(
+    "可关闭并持久化启动检查",
+    (await page.evaluate(() => localStorage.getItem("plandeck.check-updates-on-start"))) === "false",
+  );
+  await updateDialog.getByRole("button", { name: "安装 0.2.0" }).click();
+  await updateDialog.getByText("更新已安装，应用正在重启。").waitFor();
+  check("安装时传递已确认版本", backend.updateInstallCalls().at(-1) === "0.2.0");
+  await updateDialog.getByRole("button", { name: "关闭" }).click();
+  backend.setAvailableUpdate(null);
   check("主题默认跟随系统", await page.getByRole("button", { name: "跟随系统主题" }).getAttribute("aria-pressed") === "true");
   await page.getByRole("button", { name: "使用浅色主题" }).click();
   check(
@@ -107,6 +151,7 @@ try {
       (await page.evaluate(() => localStorage.getItem("plandeck-theme"))) === "light",
   );
   await page.reload();
+  check("关闭后重载不执行启动检查", backend.updateCheckCount() === 1);
   check(
     "重载后恢复已选主题",
     (await page.locator("html").getAttribute("data-theme")) === "light" &&
@@ -124,6 +169,12 @@ try {
     (await page.locator("html").getAttribute("data-theme")) === "dark" &&
       (await page.getByRole("button", { name: "跟随系统主题" }).getAttribute("aria-pressed")) === "true",
   );
+  await page.getByRole("button", { name: "应用更新" }).click();
+  const currentDialog = page.getByRole("dialog", { name: "应用更新" });
+  await currentDialog.getByRole("button", { name: "检查更新" }).click();
+  await currentDialog.getByText("当前已是最新版本。").waitFor();
+  check("手动检查可显示已是最新", backend.updateCheckCount() === 2);
+  await currentDialog.getByRole("button", { name: "关闭" }).click();
   await page.getByRole("button", { name: "现状（级联）" }).click();
   const cascadeTool = page.locator("tr[data-cascade-level='0'][data-cascade-label='hermes']");
   const cascadeProject = page.locator("tr[data-cascade-level='1'][data-cascade-label='研究']");

@@ -14,6 +14,7 @@
   --accent-soft: rgba(110, 168, 254, 0.1);
   --accent-faint: rgba(110, 168, 254, 0.05);
   --backdrop: rgba(7, 9, 13, 0.82);
+  --update-backdrop: rgba(15, 17, 21, 0.94);
   --overlay: rgba(0, 0, 0, 0.5);
   --modal-highlight: #1d222c;
   --modal-shadow: rgba(0, 0, 0, 0.55);
@@ -38,6 +39,7 @@
   --accent-soft: rgba(35, 104, 189, 0.1);
   --accent-faint: rgba(35, 104, 189, 0.05);
   --backdrop: rgba(224, 228, 235, 0.82);
+  --update-backdrop: rgba(245, 246, 248, 0.94);
   --overlay: rgba(31, 36, 45, 0.28);
   --modal-highlight: #f7f9fc;
   --modal-shadow: rgba(30, 39, 54, 0.18);
@@ -73,6 +75,34 @@ h1 {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 2px;
+}
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon-button {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--dim);
+  background: var(--panel);
+  cursor: pointer;
+  font: 18px/28px -apple-system, "SF Pro Text", sans-serif;
+}
+.icon-button:hover,
+.icon-button:focus-visible,
+.icon-button.update-ready {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.icon-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .theme-switcher {
   display: inline-grid;
@@ -329,6 +359,120 @@ tr[data-tool]:hover td {
 .plan-test-result.status-timeout,
 .plan-test-result.status-busy,
 .plan-test-result.status-service_error { color: var(--red); border-color: var(--red); }
+.update-kv {
+  margin-bottom: 16px;
+}
+.update-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(88px, 1fr));
+  margin-bottom: 16px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel2);
+}
+.update-tabs button {
+  min-height: 28px;
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--dim);
+  background: transparent;
+  cursor: pointer;
+  font: 600 12px/1 -apple-system, "SF Pro Text", sans-serif;
+}
+.update-tabs button.active {
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: 0 1px 2px var(--modal-shadow);
+}
+.update-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.update-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.update-setting input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.update-status {
+  min-height: 72px;
+  padding: 14px 0 4px;
+}
+.update-ok {
+  color: var(--green);
+}
+.update-available {
+  color: var(--accent);
+  font-weight: 700;
+}
+.update-error {
+  color: var(--red);
+  overflow-wrap: anywhere;
+}
+.update-notes {
+  max-height: 180px;
+  margin-top: 10px;
+  overflow: auto;
+  color: var(--dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.release-history {
+  min-height: 280px;
+}
+.release-entry {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.release-entry:first-child {
+  padding-top: 2px;
+}
+.release-entry:last-child {
+  border-bottom: 0;
+}
+.release-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.release-heading .mono {
+  display: block;
+  margin-top: 2px;
+}
+.release-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+.release-body {
+  margin-top: 8px;
+  color: var(--dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.update-modal-wrap {
+  padding: 24px;
+  background: var(--update-backdrop);
+  backdrop-filter: blur(6px);
+}
+#modal.update-modal {
+  position: relative;
+  width: min(640px, 100%);
+  margin: 0;
+}
 .first-run-backdrop {
   position: fixed;
   inset: 0;
@@ -388,6 +532,8 @@ tr[data-tool]:hover td {
 }
 @media (max-width: 620px) {
   body { padding: 16px 12px 40px; }
+  .app-header { align-items: flex-start; }
+  .header-controls { flex-wrap: wrap; justify-content: flex-end; }
   .first-run-actions { grid-template-columns: 1fr; }
   .c-table { display: block; overflow-x: auto; }
 }
