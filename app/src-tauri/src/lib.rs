@@ -1,5 +1,6 @@
 mod fsx;
 
+use std::fmt::Write as _;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
@@ -472,8 +473,7 @@ fn env_plans() -> Vec<EnvPlan> {
             }
             let base = name[..name.len() - suffix.len()].to_ascii_uppercase();
             let id = format!("env-{}", base.to_ascii_lowercase().replace('_', "-"));
-            let credential_fingerprint =
-                format!("{:x}", Sha256::digest(value.as_bytes()))[..12].to_owned();
+            let credential_fingerprint = credential_fingerprint(&value);
             Some(EnvPlan {
                 id,
                 name: base,
@@ -484,6 +484,14 @@ fn env_plans() -> Vec<EnvPlan> {
             })
         })
         .collect::<Vec<_>>()
+}
+
+fn credential_fingerprint(value: &str) -> String {
+    let mut fingerprint = String::with_capacity(12);
+    for byte in &Sha256::digest(value.as_bytes())[..6] {
+        write!(fingerprint, "{byte:02x}").unwrap();
+    }
+    fingerprint
 }
 
 #[tauri::command]
@@ -651,9 +659,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_plan_test_status, release_history_item, valid_completion_response, valid_test_url,
-        validate_requested_update, GithubRelease,
+        classify_plan_test_status, credential_fingerprint, release_history_item,
+        valid_completion_response, valid_test_url, validate_requested_update, GithubRelease,
     };
+
+    #[test]
+    fn credential_fingerprint_is_truncated_lowercase_sha256() {
+        assert_eq!(credential_fingerprint("secret"), "2bb80d537b1d");
+    }
 
     #[test]
     fn plan_test_statuses_are_user_facing_categories() {
