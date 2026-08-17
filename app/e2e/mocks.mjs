@@ -16,12 +16,15 @@ import { createHash } from "node:crypto";
 
 // 与 src-tauri/src/lib.rs + fsx.rs 的命令契约一一对应（cmd 名、参数名、错误语义）。
 // 供 e2e 在浏览器里驱动前端时充当 Tauri 后端。
-export function createMockBackend({ homeDir, dataDir, envVars: initialEnvVars = {} }) {
+export function createMockBackend({ homeDir, dataDir, envVars: initialEnvVars = {}, update = null }) {
   const openedInEditor = [];
   let trayTools = [];
   const eventHandlers = new Map();
   let envVars = initialEnvVars;
   const planTestCalls = [];
+  const updateInstallCalls = [];
+  let availableUpdate = update;
+  let updateCheckCount = 0;
 
   function localTimestamp() {
     const d = new Date();
@@ -153,6 +156,14 @@ export function createMockBackend({ homeDir, dataDir, envVars: initialEnvVars = 
         return homeDir;
       case "data_dir":
         return dataDir;
+      case "app_version":
+        return "0.1.0";
+      case "check_for_update":
+        updateCheckCount += 1;
+        return { currentVersion: "0.1.0", update: availableUpdate };
+      case "install_update":
+        updateInstallCalls.push(args.version);
+        return null;
       case "tray_set_menu":
         trayTools = args.tools;
         return null;
@@ -233,5 +244,8 @@ export function createMockBackend({ homeDir, dataDir, envVars: initialEnvVars = 
     eventHandler: (event) => eventHandlers.get(event),
     setEnvVars: (next) => (envVars = next),
     planTestCalls: () => planTestCalls,
+    updateCheckCount: () => updateCheckCount,
+    updateInstallCalls: () => updateInstallCalls,
+    setAvailableUpdate: (next) => (availableUpdate = next),
   };
 }

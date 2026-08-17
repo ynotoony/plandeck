@@ -23,6 +23,7 @@ chrono = { version = "0.4", features = ["clock"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 sha2 = "0.10"
+tauri-plugin-updater = "2"
 
 [profile.release]
 panic = "abort"

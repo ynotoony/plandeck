@@ -37,6 +37,13 @@ Run a secret scan over the release tree and inspect every result manually.
 
 ## Build
 
+GitHub Actions must contain these repository secrets before producing an updater-enabled release:
+
+- `TAURI_SIGNING_PRIVATE_KEY`: the encrypted Tauri updater private key.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: the private-key password.
+
+The matching public key is committed in `app/src-tauri/tauri.conf.json`. Never print, download, or commit the private key or password.
+
 On an Apple Silicon Mac with full Xcode installed:
 
 ```bash
@@ -45,7 +52,7 @@ npm ci
 npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
 ```
 
-The DMG is under `app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/`.
+The DMG is under `app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/`. With updater signing configured, Tauri also creates a signed `.app.tar.gz` archive and adjacent `.sig` file under the bundle directory.
 
 ## Checksums
 
@@ -56,7 +63,9 @@ shasum -a 256 PlanDeck*.dmg > SHA256SUMS
 
 ## GitHub Release
 
-Use a version tag and mark the first Beta as a pre-release:
+Use the release workflow with a version matching `tauri.conf.json`. It uploads the DMG, checksum, updater archive, and signature to the versioned pre-release. It then replaces `latest.json` on the stable `updater` release so installed Beta builds can discover the newest pre-release.
+
+For a manual legacy release without updater artifacts:
 
 ```bash
 gh release create v0.1.0 \
@@ -73,6 +82,7 @@ Release notes must state:
 - Unsigned and not notarized.
 - macOS may show a Gatekeeper warning.
 - The app reads and writes local AI Tool configuration files.
+- The in-app updater archive is protected by the Tauri updater signature; Apple signing and notarization remain separate.
 
 ## Signed Releases Later
 

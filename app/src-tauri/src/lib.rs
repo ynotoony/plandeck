@@ -13,6 +13,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{image::Image, tray::TrayIconBuilder, AppHandle, Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 
 pub struct AppState {
     pub home_dir: String,
@@ -232,6 +233,73 @@ struct PlanTestResult {
     message: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateInfo {
+    version: String,
+    date: Option<String>,
+    body: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateCheckResult {
+    current_version: String,
+    update: Option<UpdateInfo>,
+}
+
+#[tauri::command]
+fn app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+#[tauri::command]
+async fn check_for_update(app: AppHandle) -> Result<UpdateCheckResult, String> {
+    let current_version = app.package_info().version.to_string();
+    let update = app
+        .updater()
+        .map_err(|error| format!("无法初始化更新器: {error}"))?
+        .check()
+        .await
+        .map_err(|error| format!("检查更新失败: {error}"))?
+        .map(|update| UpdateInfo {
+            version: update.version,
+            date: update.date.map(|date| date.to_string()),
+            body: update.body,
+        });
+    Ok(UpdateCheckResult {
+        current_version,
+        update,
+    })
+}
+
+fn validate_requested_update(requested: &str, available: &str) -> Result<(), String> {
+    if requested == available {
+        Ok(())
+    } else {
+        Err(format!(
+            "可用版本已从 {requested} 变更为 {available}，请重新检查更新"
+        ))
+    }
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle, version: String) -> Result<(), String> {
+    let update = app
+        .updater()
+        .map_err(|error| format!("无法初始化更新器: {error}"))?
+        .check()
+        .await
+        .map_err(|error| format!("检查更新失败: {error}"))?
+        .ok_or_else(|| "当前已是最新版本".to_string())?;
+    validate_requested_update(&version, &update.version)?;
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|error| format!("下载或安装更新失败: {error}"))?;
+    app.restart()
+}
+
 fn classify_plan_test_status(status: reqwest::StatusCode) -> (&'static str, &'static str) {
     match status.as_u16() {
         200..=299 => ("available", "连接成功，模型可用"),
@@ -443,6 +511,7 @@ fn cc_switch_rows(state: tauri::State<AppState>) -> Result<Vec<CcSwitchRow>, Str
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -506,8 +575,11 @@ pub fn run() {
             open_in_editor,
             home_dir,
             data_dir,
+            app_version,
             env_plans,
             test_plan,
+            check_for_update,
+            install_update,
             tray_set_menu,
             cc_switch_rows
         ])
@@ -517,7 +589,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify_plan_test_status, valid_completion_response, valid_test_url};
+    use super::{
+        classify_plan_test_status, valid_completion_response, valid_test_url,
+        validate_requested_update,
+    };
 
     #[test]
     fn plan_test_statuses_are_user_facing_categories() {
@@ -541,6 +616,12 @@ mod tests {
             classify_plan_test_status(reqwest::StatusCode::BAD_GATEWAY).0,
             "service_error"
         );
+    }
+
+    #[test]
+    fn install_requires_the_version_that_was_confirmed() {
+        assert!(validate_requested_update("0.2.0", "0.2.0").is_ok());
+        assert!(validate_requested_update("0.2.0", "0.2.1").is_err());
     }
 
     #[test]
