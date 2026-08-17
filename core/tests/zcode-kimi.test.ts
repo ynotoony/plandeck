@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { applyFileEdits } from "../src/apply.js";
 import { createKimiAdapter } from "../src/adapters/kimi.js";
 import { createZcodeAdapter } from "../src/adapters/zcode.js";
+import { bootstrapCatalog } from "../src/bootstrap.js";
 import { nodeFs } from "../src/node-fs.js";
 import { nodeSqlite } from "../src/node-sqlite.js";
 import type { Catalog, Plan } from "../src/types.js";
@@ -59,6 +60,21 @@ describe("ZCode adapter", () => {
     const doc = parseJson(await nodeFs.read(`${home}/.zcode/v2/config.json`)) as any;
     expect(doc.provider.existing.options.apiKey).toBe(plan.key);
   });
+
+  it("preserves the current main/lite model shape", async () => {
+    const home = makeTempHome();
+    write(home, ".zcode/v2/config.json", JSON.stringify({
+      provider: { moonshot: { kind: "openai-compatible", options: { baseURL: plan.baseUrl, apiKey: plan.key }, models: {} } },
+      model: { main: "moonshot/old-main", lite: "moonshot/old-lite" },
+      permission: { mode: "build" },
+    }));
+    const adapter = createZcodeAdapter({ fs: nodeFs, sqlite: nodeSqlite, homeDir: home, catalog });
+    await applyFileEdits(await adapter.planChange({ ...plan, providerId: "other" }, "kimi-k3"), nodeFs);
+    const doc = parseJson(await nodeFs.read(`${home}/.zcode/v2/config.json`)) as any;
+    expect(doc.model).toEqual({ main: "other/kimi-k3", lite: "other/kimi-k3" });
+    expect(doc.small_model).toBeUndefined();
+    expect(doc.permission.mode).toBe("build");
+  });
 });
 
 describe("Kimi adapter", () => {
@@ -82,5 +98,40 @@ describe("Kimi adapter", () => {
     await applyFileEdits(await adapter.planChange({ ...plan, key: undefined }, "next"), nodeFs);
     const doc = parseToml(await nodeFs.read(`${home}/.kimi/config.toml`)) as any;
     expect(doc.providers.moonshot.api_key).toBe(plan.key);
+  });
+
+  it("rejects a keyless Plan when the target provider has no stored credential", async () => {
+    const home = makeTempHome();
+    write(home, ".kimi/config.toml", `default_model = ""\n`);
+    const adapter = createKimiAdapter({ fs: nodeFs, sqlite: nodeSqlite, homeDir: home, catalog });
+    await expect(adapter.planChange({ ...plan, key: undefined, providerId: "new" }, "next"))
+      .rejects.toThrow("has no stored credential");
+  });
+
+  it("recognizes OAuth without importing it as a key-based Plan", async () => {
+    const home = makeTempHome();
+    write(home, ".kimi/config.toml", `default_model = "kimi-code/glm"\n\n[providers."managed:kimi-code"]\ntype = "kimi"\nbase_url = "https://api.kimi.com/coding/v1"\napi_key = ""\noauth = { storage = "keyring", key = "oauth/kimi-code" }\n\n[models."kimi-code/glm"]\nprovider = "managed:kimi-code"\nmodel = "glm"\nmax_context_size = 262144\n`);
+    const adapter = createKimiAdapter({ fs: nodeFs, sqlite: nodeSqlite, homeDir: home, catalog });
+    expect(await adapter.readFragment()).toBeNull();
+    expect(await adapter.readState()).toMatchObject({
+      toolId: "kimi",
+      status: "oauth",
+      defaultModel: "glm",
+    });
+    expect((await bootstrapCatalog([adapter])).plans).toEqual([
+      expect.objectContaining({ id: "kimi-oauth", source: "oauth" }),
+    ]);
+  });
+
+  it("uses the Anthropic provider protocol for Anthropic endpoints", async () => {
+    const home = makeTempHome();
+    const adapter = createKimiAdapter({ fs: nodeFs, sqlite: nodeSqlite, homeDir: home, catalog });
+    const edit = (await adapter.planChange({
+      ...plan,
+      providerId: "anthropic",
+      baseUrl: "https://api.anthropic.com",
+    }, "claude-sonnet"))[0]!;
+    const doc = parseToml(edit.newText) as any;
+    expect(doc.providers.anthropic.type).toBe("anthropic");
   });
 });

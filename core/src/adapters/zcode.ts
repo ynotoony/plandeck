@@ -48,6 +48,7 @@ export function createZcodeAdapter(ctx: AdapterContext): Adapter {
     requireBaseUrl(plan, "ZCode");
     const providerId = plan.providerId ?? slug(plan.name);
     const oldText = await readOrEmpty(ctx.fs, configPath);
+    const doc = oldText ? (parse(oldText) as Record<string, any>) : {};
     let newText = oldText || "{}\n";
     newText = jsonSet(
       newText,
@@ -60,8 +61,14 @@ export function createZcodeAdapter(ctx: AdapterContext): Adapter {
       newText = jsonSet(newText, ["provider", providerId, "options", "apiKey"], plan.key);
     }
     newText = jsonSet(newText, ["provider", providerId, "models", model, "name"], model);
-    newText = jsonSet(newText, ["model"], `${providerId}/${model}`);
-    newText = jsonSet(newText, ["small_model"], `${providerId}/${model}`);
+    const selected = `${providerId}/${model}`;
+    if (doc.model && typeof doc.model === "object" && !Array.isArray(doc.model)) {
+      newText = jsonSet(newText, ["model", "main"], selected);
+      newText = jsonSet(newText, ["model", "lite"], selected);
+    } else {
+      newText = jsonSet(newText, ["model"], selected);
+      newText = jsonSet(newText, ["small_model"], selected);
+    }
     return [{ path: configPath, oldText, newText }];
   }
 

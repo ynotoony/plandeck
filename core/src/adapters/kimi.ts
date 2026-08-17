@@ -12,8 +12,10 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     return parse(await ctx.fs.read(path)) as Record<string, any>;
   }
 
-  async function readFragment(): Promise<ConfigFragment | null> {
-    const doc = await readDoc();
+  function activeConfig(doc: Record<string, any> | null): {
+    fragment: ConfigFragment;
+    oauth: boolean;
+  } | null {
     const alias = str(doc?.default_model);
     const selected = alias ? doc?.models?.[alias] : undefined;
     const model = str(selected?.model);
@@ -21,18 +23,37 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     if (!model || !providerId) return null;
     const provider = doc?.providers?.[providerId];
     return {
-      providerId,
-      model,
-      baseUrl: str(selected?.base_url) ?? str(provider?.base_url),
-      key: str(provider?.api_key),
+      fragment: {
+        providerId,
+        model,
+        baseUrl: str(selected?.base_url) ?? str(provider?.base_url),
+        key: str(provider?.api_key),
+      },
+      oauth: provider?.oauth != null && typeof provider.oauth === "object",
     };
   }
 
+  async function readFragment(): Promise<ConfigFragment | null> {
+    const active = activeConfig(await readDoc());
+    return active?.oauth ? null : active?.fragment ?? null;
+  }
+
   async function readState(): Promise<ToolState> {
+    const doc = await readDoc();
+    const active = activeConfig(doc);
+    if (active?.oauth) {
+      return {
+        toolId: KIMI_TOOL_ID,
+        status: "oauth",
+        defaultModel: active.fragment.model,
+        baseUrl: active.fragment.baseUrl,
+        projects: [],
+      };
+    }
     return stateFromFragment(
       KIMI_TOOL_ID,
-      await readFragment(),
-      await ctx.fs.exists(configPath),
+      active?.fragment ?? null,
+      doc !== null,
       ctx.catalog,
     );
   }
@@ -45,12 +66,25 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     const doc = oldText ? (parse(oldText) as Record<string, any>) : {};
     doc.providers ??= {};
     doc.models ??= {};
-    doc.providers[providerId] = {
-      ...doc.providers[providerId],
-      type: plan.baseUrl!.includes("moonshot") || plan.baseUrl!.includes("kimi.com") ? "kimi" : "openai_legacy",
-      base_url: plan.baseUrl,
-      ...(plan.key ? { api_key: plan.key } : {}),
+    const existingProvider = doc.providers[providerId] as Record<string, any> | undefined;
+    const hasStoredCredential =
+      typeof existingProvider?.api_key === "string" ||
+      (existingProvider?.oauth != null && typeof existingProvider.oauth === "object");
+    if (!plan.key && !hasStoredCredential) {
+      throw new Error(`plan has no key and Kimi Code has no stored credential: ${plan.name}`);
+    }
+    const provider: Record<string, any> = {
+      ...existingProvider,
+      type: str(existingProvider?.type) ?? kimiProviderType(plan.baseUrl!),
+      base_url: plan.baseUrl!,
     };
+    if (plan.key) {
+      provider.api_key = plan.key;
+      delete provider.oauth;
+    } else if (provider.oauth && typeof provider.api_key !== "string") {
+      provider.api_key = "";
+    }
+    doc.providers[providerId] = provider;
     doc.models[alias] = {
       ...doc.models[alias],
       provider: providerId,
@@ -69,4 +103,11 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     readFragment,
     planChange,
   };
+}
+
+function kimiProviderType(baseUrl: string): "kimi" | "anthropic" | "openai_legacy" {
+  const normalized = baseUrl.toLowerCase();
+  if (normalized.includes("moonshot") || normalized.includes("kimi.com")) return "kimi";
+  if (normalized.includes("anthropic")) return "anthropic";
+  return "openai_legacy";
 }
