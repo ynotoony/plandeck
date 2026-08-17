@@ -10,7 +10,7 @@ This file is the committed release ledger. GitHub milestones are the live issue 
 | --- | --- | --- | --- |
 | `v0.1.0` | 2026-08-13 | Pre-release published | Initial Apple Silicon macOS Beta. Unsigned and not notarized. |
 
-## v0.2.0
+## v0.1.1
 
 Status: Planning and review
 
@@ -27,7 +27,7 @@ Theme: complete the first post-Beta compatibility and Tool-support changes while
 
 ### Entry Gates
 
-- Included requirements have acceptance criteria, size labels, and the `v0.2.0` milestone.
+- Included requirements have acceptance criteria, size labels, and the `v0.1.1` milestone.
 - Large requirements are split into independently mergeable children.
 - Each PR references its requirement and updates this table.
 
