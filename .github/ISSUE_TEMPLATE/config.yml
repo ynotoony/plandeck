@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ynotoony/plandeck/security/advisories/new
+    about: Report credentials, path traversal, permission, or other security issues privately.
