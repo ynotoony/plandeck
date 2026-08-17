@@ -150,6 +150,12 @@ try {
     (await page.locator("html").getAttribute("data-theme")) === "light" &&
       (await page.evaluate(() => localStorage.getItem("plandeck-theme"))) === "light",
   );
+  check(
+    "浅色主题根背景与页面一致",
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement).backgroundColor === getComputedStyle(document.body).backgroundColor,
+    ),
+  );
   await page.reload();
   check("关闭后重载不执行启动检查", backend.updateCheckCount() === 1);
   check(
@@ -159,6 +165,12 @@ try {
   );
   await page.getByRole("button", { name: "使用深色主题" }).click();
   check("可切换到深色主题", (await page.locator("html").getAttribute("data-theme")) === "dark");
+  check(
+    "深色主题根背景与页面一致",
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement).backgroundColor === getComputedStyle(document.body).backgroundColor,
+    ),
+  );
   await page.getByRole("button", { name: "跟随系统主题" }).click();
   await page.emulateMedia({ colorScheme: "light" });
   check("系统模式响应浅色偏好", (await page.locator("html").getAttribute("data-theme")) === "light");
