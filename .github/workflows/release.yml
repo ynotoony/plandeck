@@ -39,7 +39,7 @@ jobs:
           test -f "docs/release-notes/$APP_VERSION.md"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "NOTES_FILE=docs/release-notes/$APP_VERSION.md" >> "$GITHUB_ENV"
-      - run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+      - run: npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
         working-directory: app
         env:
           APPLE_SIGNING_IDENTITY: "-"
