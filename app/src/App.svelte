@@ -18,6 +18,8 @@
   import ToolDrawer from "./components/ToolDrawer.svelte";
   import PlanEditor from "./components/PlanEditor.svelte";
   import PlanTestModal from "./components/PlanTestModal.svelte";
+  import UpdateDialog from "./components/UpdateDialog.svelte";
+  import { initializeUpdater, updaterState } from "./lib/updater.svelte";
   import type { Plan } from "@plandeck/core";
 
   const TABS: [string, string][] = [
@@ -40,6 +42,7 @@
   let refreshing = $state(false);
   let editingPlan = $state<Plan | null | undefined>(undefined);
   let testingPlan = $state<Plan | null>(null);
+  let updateDialogOpen = $state(false);
   let collapsedCascadeNodes = $state(new Set<string>());
 
   const rows = $derived(deriveDefaultRows(appState.tools, appState.catalog));
@@ -83,6 +86,7 @@
     init()
       .then(initTray)
       .catch((e: unknown) => toast(String(e), "err"));
+    initializeUpdater();
     const onFocus = (): void => {
       if (appState.ready) {
         refresh()
@@ -96,6 +100,7 @@
         drawerToolId = null;
         editingPlan = undefined;
         testingPlan = null;
+        updateDialogOpen = false;
       }
     };
     window.addEventListener("focus", onFocus);
@@ -161,19 +166,29 @@
 
 <header class="app-header">
   <h1>PlanDeck</h1>
-  <div class="theme-switcher" role="group" aria-label="主题">
-    {#each THEMES as [value, label, title] (value)}
-      <button
-        type="button"
-        class:active={themeState.selected === value}
-        aria-label={title}
-        aria-pressed={themeState.selected === value}
-        {title}
-        onclick={() => applyTheme(value)}
-      >
-        {label}
-      </button>
-    {/each}
+  <div class="header-controls">
+    <button
+      type="button"
+      class="icon-button update-button"
+      class:update-ready={updaterState.status === "available"}
+      aria-label="应用更新"
+      title="应用更新"
+      onclick={() => (updateDialogOpen = true)}
+    >↻</button>
+    <div class="theme-switcher" role="group" aria-label="主题">
+      {#each THEMES as [value, label, title] (value)}
+        <button
+          type="button"
+          class:active={themeState.selected === value}
+          aria-label={title}
+          aria-pressed={themeState.selected === value}
+          {title}
+          onclick={() => applyTheme(value)}
+        >
+          {label}
+        </button>
+      {/each}
+    </div>
   </div>
 </header>
 <div class="sub">
@@ -362,6 +377,9 @@
 {/if}
 {#if testingPlan}
   <PlanTestModal plan={testingPlan} onDone={() => (testingPlan = null)} />
+{/if}
+{#if updateDialogOpen}
+  <UpdateDialog onDone={() => (updateDialogOpen = false)} />
 {/if}
 
 <div id="toast" class={toastState.kind} hidden={!toastState.visible}>{toastState.msg}</div>

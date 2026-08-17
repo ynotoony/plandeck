@@ -27,6 +27,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["dmg"],
     "icon": [
       "icons/32x32.png",
@@ -35,5 +36,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/ynotoony/plandeck/releases/download/updater/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRBRTdCOUJERERENUQxNTgKUldSWTBkWGR2Ym5uU2xHUlNaYi8vQ0tQRXlCWWpaZVhrdkJkOGVhUHVXVTNpaitrZC8yUUVYL3QK"
+    }
   }
 }
