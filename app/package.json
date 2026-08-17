@@ -1,6 +1,6 @@
 {
   "name": "@plandeck/app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local AI subscription and model plan manager for macOS.",
   "license": "MIT",
   "repository": "https://github.com/ynotoony/plandeck",

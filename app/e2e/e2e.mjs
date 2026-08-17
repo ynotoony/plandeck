@@ -233,7 +233,7 @@ try {
     "Tool 收起时隐藏全部 project 与 session",
     (await cascadeProject.count()) === 0 &&
       (await cascadeSession.count()) === 0 &&
-      (await page.locator("tr[data-cascade-level='0']").count()) === 5,
+      (await page.locator("tr[data-cascade-level='0']").count()) === 7,
   );
   await cascadeTool.getByRole("button", { name: "展开 Hermes" }).click();
   check("Tool 重新展开后恢复全部后代", (await cascadeProject.count()) === 1 && (await cascadeSession.count()) === 1);
@@ -296,8 +296,8 @@ try {
   check("Plan 显示名 = Alibaba Token Plan", rowText.includes("Alibaba Token Plan"));
   await page.waitForFunction(() => true);
   check(
-    "托盘菜单收到 5 个 Tool 的默认模型视图",
-    backend.trayTools().length === 5 &&
+    "托盘菜单收到 7 个 Tool 的默认模型视图",
+    backend.trayTools().length === 7 &&
       backend.trayTools().some((tool) =>
         tool.label.includes("Hermes · qwen3.8-max（已识别）"),
       ),
