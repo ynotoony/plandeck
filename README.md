@@ -18,7 +18,7 @@ PlanDeck gives people who use several AI tools and providers one local view of t
 - Restores previous configuration versions from the Tool drawer.
 - Provides macOS tray menu quick switching.
 - Supports system, light, and dark themes.
-- Checks GitHub Releases and installs signed updates, with an optional startup check.
+- Shows recent GitHub Release notes and installs signed updates, with an optional startup check.
 - Imports compatible provider history from ccSwitch.
 
 The current adapters cover Hermes, opencode, OpenClaw, Codex CLI, and Claude Code.
@@ -47,7 +47,7 @@ Download the latest `.dmg` from [GitHub Releases](https://github.com/ynotoony/pl
 
 After downloading an unsigned build, macOS may block the first launch. Open it from Finder using **Control-click -> Open**, or approve it in **System Settings -> Privacy & Security**. Only do this when the checksum and release source are trusted.
 
-Once installed, use the update button in PlanDeck to check for releases. Updater packages are verified with PlanDeck's Tauri updater key before installation. This integrity signature is separate from Apple Developer ID signing and notarization.
+Once installed, use the update button in PlanDeck to check for releases or review recent release notes. Updater packages are verified with PlanDeck's Tauri updater key before installation. This integrity signature is separate from Apple Developer ID signing and notarization.
 
 ## Build From Source
 

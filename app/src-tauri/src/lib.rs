@@ -248,6 +248,26 @@ struct UpdateCheckResult {
     update: Option<UpdateInfo>,
 }
 
+#[derive(Debug, Deserialize)]
+struct GithubRelease {
+    tag_name: String,
+    name: Option<String>,
+    body: Option<String>,
+    published_at: Option<String>,
+    prerelease: bool,
+    draft: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReleaseHistoryItem {
+    version: String,
+    name: String,
+    body: Option<String>,
+    published_at: Option<String>,
+    prerelease: bool,
+}
+
 #[tauri::command]
 fn app_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
@@ -271,6 +291,46 @@ async fn check_for_update(app: AppHandle) -> Result<UpdateCheckResult, String> {
         current_version,
         update,
     })
+}
+
+fn release_history_item(release: GithubRelease) -> Option<ReleaseHistoryItem> {
+    if release.draft || release.tag_name == "updater" {
+        return None;
+    }
+    let name = release
+        .name
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| release.tag_name.clone());
+    Some(ReleaseHistoryItem {
+        version: release.tag_name,
+        name,
+        body: release.body,
+        published_at: release.published_at,
+        prerelease: release.prerelease,
+    })
+}
+
+#[tauri::command]
+async fn release_history() -> Result<Vec<ReleaseHistoryItem>, String> {
+    let releases = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .user_agent("PlanDeck update history")
+        .build()
+        .map_err(|error| format!("无法初始化更新记录请求: {error}"))?
+        .get("https://api.github.com/repos/ynotoony/plandeck/releases?per_page=10")
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|error| format!("获取更新记录失败: {error}"))?
+        .error_for_status()
+        .map_err(|error| format!("获取更新记录失败: {error}"))?
+        .json::<Vec<GithubRelease>>()
+        .await
+        .map_err(|error| format!("解析更新记录失败: {error}"))?;
+    Ok(releases
+        .into_iter()
+        .filter_map(release_history_item)
+        .collect())
 }
 
 fn validate_requested_update(requested: &str, available: &str) -> Result<(), String> {
@@ -579,6 +639,7 @@ pub fn run() {
             env_plans,
             test_plan,
             check_for_update,
+            release_history,
             install_update,
             tray_set_menu,
             cc_switch_rows
@@ -590,8 +651,8 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_plan_test_status, valid_completion_response, valid_test_url,
-        validate_requested_update,
+        classify_plan_test_status, release_history_item, valid_completion_response, valid_test_url,
+        validate_requested_update, GithubRelease,
     };
 
     #[test]
@@ -622,6 +683,21 @@ mod tests {
     fn install_requires_the_version_that_was_confirmed() {
         assert!(validate_requested_update("0.2.0", "0.2.0").is_ok());
         assert!(validate_requested_update("0.2.0", "0.2.1").is_err());
+    }
+
+    #[test]
+    fn release_history_excludes_drafts_and_the_machine_feed() {
+        let release = |tag_name: &str, draft: bool| GithubRelease {
+            tag_name: tag_name.to_string(),
+            name: None,
+            body: Some("notes".to_string()),
+            published_at: Some("2026-08-17T12:00:00Z".to_string()),
+            prerelease: true,
+            draft,
+        };
+        assert!(release_history_item(release("v0.2.0", false)).is_some());
+        assert!(release_history_item(release("updater", false)).is_none());
+        assert!(release_history_item(release("v0.3.0", true)).is_none());
     }
 
     #[test]

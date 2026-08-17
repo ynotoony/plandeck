@@ -39,6 +39,15 @@ const backend = createMockBackend({
     date: "2026-08-17T12:00:00Z",
     body: "Adds signed GitHub Release updates.",
   },
+  releaseHistory: [
+    {
+      version: "v0.1.0",
+      name: "PlanDeck 0.1.0 Beta",
+      body: "Initial Apple Silicon macOS Beta.",
+      publishedAt: "2026-08-13T12:00:00Z",
+      prerelease: true,
+    },
+  ],
 });
 const server = await backend.start(MOCK_PORT);
 
@@ -113,6 +122,17 @@ try {
     "更新弹窗显示当前与可用版本",
     (await updateDialog.innerText()).includes("0.1.0") && (await updateDialog.innerText()).includes("0.2.0"),
   );
+  await updateDialog.getByRole("tab", { name: "更新记录" }).click();
+  await updateDialog.getByText("PlanDeck 0.1.0 Beta").waitFor();
+  check(
+    "更新记录显示版本、预发布状态和 Release Notes",
+    backend.releaseHistoryCount() === 1 &&
+      (await updateDialog.innerText()).includes("v0.1.0") &&
+      (await updateDialog.innerText()).includes("预发布") &&
+      (await updateDialog.innerText()).includes("Initial Apple Silicon macOS Beta."),
+  );
+  await shot("00-update-history");
+  await updateDialog.getByRole("tab", { name: "更新", exact: true }).click();
   await updateDialog.getByLabel("启动时检查更新").uncheck();
   check(
     "可关闭并持久化启动检查",

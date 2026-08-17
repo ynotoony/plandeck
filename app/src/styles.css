@@ -362,6 +362,34 @@ tr[data-tool]:hover td {
 .update-kv {
   margin-bottom: 16px;
 }
+.update-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(88px, 1fr));
+  margin-bottom: 16px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel2);
+}
+.update-tabs button {
+  min-height: 28px;
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--dim);
+  background: transparent;
+  cursor: pointer;
+  font: 600 12px/1 -apple-system, "SF Pro Text", sans-serif;
+}
+.update-tabs button.active {
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: 0 1px 2px var(--modal-shadow);
+}
+.update-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .update-setting {
   display: flex;
   align-items: center;
@@ -395,6 +423,42 @@ tr[data-tool]:hover td {
   max-height: 180px;
   margin-top: 10px;
   overflow: auto;
+  color: var(--dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.release-history {
+  min-height: 280px;
+}
+.release-entry {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.release-entry:first-child {
+  padding-top: 2px;
+}
+.release-entry:last-child {
+  border-bottom: 0;
+}
+.release-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.release-heading .mono {
+  display: block;
+  margin-top: 2px;
+}
+.release-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+.release-body {
+  margin-top: 8px;
   color: var(--dim);
   white-space: pre-wrap;
   overflow-wrap: anywhere;

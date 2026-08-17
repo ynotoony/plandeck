@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Check GitHub Releases from the app and install signature-verified updates.
+- Review recent GitHub Release notes from the app and install signature-verified updates.
 - Optionally check for updates at startup, with a persisted user preference.
 
 ## 0.1.0 Beta

@@ -9,6 +9,14 @@ export interface UpdateInfo {
   body?: string;
 }
 
+export interface ReleaseHistoryItem {
+  version: string;
+  name: string;
+  body?: string;
+  publishedAt?: string;
+  prerelease: boolean;
+}
+
 interface UpdateCheckResult {
   currentVersion: string;
   update?: UpdateInfo;
@@ -22,6 +30,9 @@ interface UpdaterState {
   status: UpdateStatus;
   update: UpdateInfo | null;
   error: string | null;
+  historyStatus: "idle" | "loading" | "ready" | "error";
+  history: ReleaseHistoryItem[];
+  historyError: string | null;
 }
 
 function storedStartupPreference(): boolean {
@@ -35,9 +46,13 @@ export const updaterState = $state<UpdaterState>({
   status: "idle",
   update: null,
   error: null,
+  historyStatus: "idle",
+  history: [],
+  historyError: null,
 });
 
 let activeCheck: Promise<void> | null = null;
+let activeHistoryLoad: Promise<void> | null = null;
 
 export function setStartupCheckEnabled(enabled: boolean): void {
   updaterState.startupCheckEnabled = enabled;
@@ -91,5 +106,26 @@ export async function installAvailableUpdate(): Promise<void> {
     updaterState.status = "error";
     updaterState.error = String(error);
     toast(updaterState.error, "err");
+  }
+}
+
+export function loadReleaseHistory(force = false): Promise<void> {
+  if (!force && updaterState.historyStatus === "ready") return Promise.resolve();
+  if (activeHistoryLoad) return activeHistoryLoad;
+  activeHistoryLoad = runReleaseHistoryLoad().finally(() => {
+    activeHistoryLoad = null;
+  });
+  return activeHistoryLoad;
+}
+
+async function runReleaseHistoryLoad(): Promise<void> {
+  updaterState.historyStatus = "loading";
+  updaterState.historyError = null;
+  try {
+    updaterState.history = await invoke<ReleaseHistoryItem[]>("release_history");
+    updaterState.historyStatus = "ready";
+  } catch (error) {
+    updaterState.historyStatus = "error";
+    updaterState.historyError = String(error);
   }
 }
