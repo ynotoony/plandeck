@@ -4,6 +4,7 @@ import type {
   AdapterContext,
   ConfigFragment,
   FileEdit,
+  GroupContract,
   Plan,
   ProjectState,
   SessionState,
@@ -162,6 +163,24 @@ export function createOpencodeAdapter(ctx: AdapterContext): Adapter {
     return [{ path, oldText, newText }];
   }
 
+  async function groupChange(group: GroupContract): Promise<FileEdit[]> {
+    const providerId = `plandeck-${slug(group.id)}`;
+    const { files } = await loadConfigs();
+    const target = files.find((file) => file.path === jsoncPath) ?? files[0];
+    const path = target?.path ?? jsonPath;
+    const oldText = target?.text ?? "";
+    let newText = oldText === "" ? "{}\n" : oldText;
+    newText = jsonSet(newText, ["model"], `${providerId}/${group.model}`);
+    newText = jsonSet(newText, ["provider", providerId, "options", "baseURL"], group.baseUrl);
+    newText = jsonSet(
+      newText,
+      ["provider", providerId, "options", "apiKey"],
+      `{env:${group.credentialEnvVar}}`,
+    );
+    newText = jsonSet(newText, ["provider", providerId, "models", group.model], {});
+    return [{ path, oldText, newText }];
+  }
+
   return {
     toolId: OPENCODE_TOOL_ID,
     toolName: "opencode",
@@ -169,6 +188,8 @@ export function createOpencodeAdapter(ctx: AdapterContext): Adapter {
     readState,
     readFragment,
     planChange,
+    environmentSupport: { supported: true },
+    groupChange,
   };
 }
 

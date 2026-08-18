@@ -1,5 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { FsPort, Plan, SqlitePort } from "@plandeck/core";
+import type {
+  EnvironmentCatalog,
+  EnvironmentCatalogWrite,
+  FsPort,
+  Plan,
+  SqlitePort,
+} from "@plandeck/core";
 import type { CcSwitchRow } from "@plandeck/core";
 
 export const tauriFs: FsPort = {
@@ -74,11 +80,56 @@ export function fetchEnvPlans(): Promise<Plan[]> {
   return invoke<Plan[]>("env_plans");
 }
 
+export function fetchEnvironmentCatalog(): Promise<EnvironmentCatalog> {
+  return invoke<EnvironmentCatalog>("environment_catalog");
+}
+
 export interface PlanTestResult {
   status: "available" | "auth_failed" | "model_not_found" | "busy" | "service_error" | "timeout" | "error";
   message: string;
 }
 
-export function testPlan(baseUrl: string, key: string, model: string): Promise<PlanTestResult> {
-  return invoke<PlanTestResult>("test_plan", { baseUrl, key, model });
+export function testEnvironmentPlan(planId: string, model: string): Promise<PlanTestResult> {
+  return invoke<PlanTestResult>("environment_test_plan", { planId, model });
+}
+
+export function saveEnvironmentCatalog(
+  document: EnvironmentCatalogWrite,
+): Promise<EnvironmentCatalog> {
+  return invoke<EnvironmentCatalog>("environment_save", { document });
+}
+
+export function selectEnvironmentPlan(groupId: string, planId: string): Promise<EnvironmentCatalog> {
+  return invoke<EnvironmentCatalog>("environment_select", { groupId, planId });
+}
+
+export interface LoaderInstallResult {
+  installed: string[];
+  backups: string[];
+}
+
+export function installEnvironmentLoader(): Promise<LoaderInstallResult> {
+  return invoke<LoaderInstallResult>("environment_install_loader");
+}
+
+export interface MigrationPreview {
+  candidatePlans: number;
+  candidateSources: string[];
+  warnings: string[];
+}
+
+export interface MigrationResult {
+  importedPlans: number;
+  removedCatalogKeys: number;
+  removedShellAssignments: number;
+  backups: string[];
+  affectedPaths: string[];
+}
+
+export function previewEnvironmentMigration(): Promise<MigrationPreview> {
+  return invoke<MigrationPreview>("environment_migration_preview");
+}
+
+export function migrateLegacyEnvironment(): Promise<MigrationResult> {
+  return invoke<MigrationResult>("environment_migrate_legacy");
 }

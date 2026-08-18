@@ -142,5 +142,9 @@ export function createOpenclawAdapter(ctx: AdapterContext): Adapter {
     readState,
     readFragment,
     planChange,
+    environmentSupport: {
+      supported: false,
+      reason: "OpenClaw v1 保留现有 auth profile，等待官方环境凭据契约",
+    },
   };
 }

@@ -33,7 +33,10 @@ copyFileSync(join(CORE_ROOT, "tests/fixtures/catalog.json"), join(DATA_DIR, "cat
 const backend = createMockBackend({
   homeDir: HOME_DIR,
   dataDir: DATA_DIR,
-  envVars: { MINIMAX_API_KEY: "minimax-e2e-key" },
+  envVars: {
+    MINIMAX_API_KEY: "minimax-e2e-key",
+    MINIMAX_BACKUP_API_KEY: "minimax-backup-e2e-key",
+  },
   update: {
     version: "0.2.0",
     date: "2026-08-17T12:00:00Z",
@@ -227,52 +230,56 @@ try {
   check("Tool 重新展开后恢复全部后代", (await cascadeProject.count()) === 1 && (await cascadeSession.count()) === 1);
   await page.getByRole("button", { name: "Plan 清单" }).click();
   check("Plan 清单保留 ccSwitch 导入入口", await page.getByRole("button", { name: "导入 ccSwitch" }).isVisible());
-  const envPlan = page.locator("tr[data-plan='env-minimax']");
-  check("env Plan 在 init 后显示变量来源", (await envPlan.innerText()).includes("env") && (await envPlan.innerText()).includes("MINIMAX_API_KEY"));
-  const planRow = page.locator("tr[data-plan='alibaba-token-plan']");
-  const backupsBeforePlanTest = backend.listBackupRecords().length;
-  await planRow.getByRole("button", { name: "测试可用性" }).click();
-  const planTestModal = page.getByRole("dialog", { name: "测试 Plan Alibaba Token Plan" });
-  await planTestModal.waitFor();
-  check("Plan 测试默认选择第一个模型", await planTestModal.locator("select").inputValue() === "qwen3.8-max");
-  await planTestModal.locator("select").selectOption("qwen3-max");
+  const envPlan = page.locator("tr[data-plan='MINIMAX']");
+  await envPlan.waitFor();
+  const envPlanText = await envPlan.innerText();
+  check(
+    "environment Plan 显示脱敏来源和凭证状态",
+    envPlanText.includes("env") && envPlanText.includes("已设置") && !envPlanText.includes("minimax-e2e-key"),
+  );
+  await envPlan.getByRole("button", { name: "测试可用性" }).click();
+  const planTestModal = page.getByRole("dialog", { name: "测试 Plan MiniMax Primary" });
   await planTestModal.getByRole("button", { name: "开始测试" }).click();
   await planTestModal.getByText("连接成功，模型可用（HTTP 200）").waitFor();
   check(
-    "Plan 测试可切换模型并返回成功",
-    backend.planTestCalls().at(-1)?.model === "qwen3-max",
+    "环境 Plan 测试不把凭据传给前端",
+    backend.planTestCalls().at(-1)?.planId === "MINIMAX" && !("key" in backend.planTestCalls().at(-1)),
   );
-  check("Plan 测试不创建备份", backend.listBackupRecords().length === backupsBeforePlanTest);
-  check("Plan 测试弹窗使用 dialog 语义", (await planTestModal.getAttribute("open")) !== null);
   await planTestModal.getByRole("button", { name: "关闭" }).click();
-  const maskedKey = await page.locator("tr[data-plan='alibaba-token-plan'] td").nth(2).innerText();
-  check("Plan key 默认打码", maskedKey.includes("fix…0001") && !maskedKey.includes("fixture-credential-alpha"), maskedKey);
-  await page.getByRole("button", { name: "显示" }).first().click();
-  check("Plan key 点击后显示明文", (await page.locator("tr[data-plan='alibaba-token-plan'] td").nth(2).innerText()).includes("fixture-credential-alpha-0001"));
-  await page.getByRole("button", { name: "＋ 新建 Plan" }).click();
-  const planEditor = page.getByRole("region", { name: "新建 Plan" });
-  await planEditor.getByLabel("名称").fill("E2E Plan");
-  await planEditor.getByLabel("base_url").fill("https://e2e.example.com");
-  await planEditor.getByLabel("key").fill("e2e-key");
-  await planEditor.getByLabel("模型清单").fill("e2e-model");
-  await planEditor.getByRole("button", { name: "保存" }).click();
-  const createdPlan = page.locator("tr[data-plan='e2e-plan']");
-  await createdPlan.waitFor();
-  check("新建 Plan 写入并刷新清单", (await createdPlan.innerText()).includes("e2e-model"));
-  await createdPlan.click();
-  const editPlanEditor = page.getByRole("region", { name: "编辑 Plan" });
-  await editPlanEditor.getByLabel("名称").fill("E2E Plan Updated");
-  await editPlanEditor.getByRole("button", { name: "保存" }).click();
-  await page.waitForFunction(
-    () => document.querySelector("tr[data-plan='e2e-plan']")?.textContent?.includes("E2E Plan Updated"),
+  await envPlan.click();
+  const envPlanEditor = page.getByRole("region", { name: "编辑 Plan" });
+  await envPlanEditor.waitFor();
+  check(
+    "编辑 environment Plan 时凭据输入为空且不含明文",
+    (await envPlanEditor.locator("input[type='password']").inputValue()) === "" &&
+      !(await envPlanEditor.innerText()).includes("minimax-e2e-key"),
   );
-  check("编辑 Plan 原位更新", (await createdPlan.innerText()).includes("E2E Plan Updated"));
-  await createdPlan.click();
+  await envPlanEditor.getByRole("button", { name: "取消" }).click();
+
+  await page.getByRole("button", { name: "新建 Group" }).click();
+  const groupEditor = page.getByRole("region", { name: "新建 Group" });
+  await groupEditor.getByLabel("ID", { exact: true }).fill("DEFAULT");
+  await groupEditor.getByLabel("provider", { exact: true }).fill("openai-compatible");
+  await groupEditor.getByLabel("base_url", { exact: true }).fill("https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1");
+  await groupEditor.getByLabel("固定模型", { exact: true }).fill("qwen3.8-max");
+  await groupEditor.locator(".group-members label").filter({ hasText: "MiniMax Primary" }).getByRole("checkbox").check();
+  await groupEditor.locator(".group-members label").filter({ hasText: "MiniMax Backup" }).getByRole("checkbox").check();
+  await groupEditor.locator("select").selectOption("MINIMAX");
+  await groupEditor.getByRole("button", { name: "保存" }).click();
+  const groupRow = page.locator("section[aria-label='订阅 Group'] tbody tr").filter({ hasText: "DEFAULT" });
+  await groupRow.waitFor();
+  check("Group 保存成员、固定模型和当前选择", (await groupRow.innerText()).includes("MINIMAX") && (await groupRow.innerText()).includes("qwen3.8-max"));
+
+  await page.getByRole("button", { name: "配置环境变量" }).click();
+  await page.locator("#toast:not([hidden])").filter({ hasText: "已配置环境变量" }).waitFor();
+  check("UI 可配置环境变量", backend.loaderInstallCalls().length === 1);
+
+  backend.setMigrationPreview({ candidatePlans: 1, candidateSources: ["catalog.json"], warnings: [] });
+  backend.setMigrationResult({ importedPlans: 1, removedCatalogKeys: 1, removedShellAssignments: 1, backups: ["catalog.json", ".zshrc"], affectedPaths: ["catalog.json", ".zshrc"] });
   page.once("dialog", (dialog) => dialog.accept());
-  await editPlanEditor.getByRole("button", { name: "删除" }).click();
-  await createdPlan.waitFor({ state: "detached" });
-  check("删除 Plan 从清单移除", (await createdPlan.count()) === 0);
-  check("Plan 写入前自动备份 catalog", backend.listBackups().some((backup) => backup.files.includes("catalog.json")));
+  await page.getByRole("button", { name: "迁移旧凭据" }).click();
+  await page.locator("#toast:not([hidden])").filter({ hasText: "已迁移 1 个 Plan" }).waitFor();
+  check("UI 提供显式旧凭据迁移确认和结果", (await page.locator("#toast").innerText()).includes("已备份 2 个文件"));
   await page.getByRole("button", { name: "默认模型" }).click();
 
   const row = page.locator("tr[data-tool='hermes']");
@@ -299,154 +306,60 @@ try {
   const drawerText = await drawer.innerText();
   check("抽屉显示注入 HOME 下的配置路径", drawerText.includes(join(HOME_DIR, ".hermes/config.yaml")));
   await shot("02-drawer");
-
-  await drawer.getByRole("button", { name: "切换", exact: true }).click();
-  const modal = page.locator("#modal");
-  await modal.waitFor();
-  await shot("03-modal-plans");
-
-  const picks = modal.locator(".pick");
-  check("Plan 列表包含 env Plan", (await picks.count()) === 4);
-  const oauthPick = picks.filter({ hasText: "Claude Max" });
-  check(
-    "OAuth 型 Plan 置灰 + OAuth 登录 badge",
-    (await oauthPick.getAttribute("class")).includes("dis") &&
-      (await oauthPick.innerText()).includes("OAuth 登录"),
-  );
-
-  check("OAuth Plan 不可操作", await oauthPick.isDisabled());
-
-  await picks.filter({ hasText: "DeepSeek" }).click();
-  await modal.locator(".chip", { hasText: "deepseek-v4-pro" }).click();
-  const diff = modal.locator(".diff");
-  await diff.waitFor();
-  const diffText = await diff.innerText();
-  check(
-    "diff 红删旧 base_url / 绿增新 base_url（来自 planChange 的 FileEdit）",
-    /- *base_url: https:\/\/token-plan\.cn-beijing\.maas\.aliyuncs\.com/.test(diffText) &&
-      /\+ *base_url: https:\/\/api\.deepseek\.com/.test(diffText),
-  );
-  check(
-    "diff 含模型行变更",
-    /- *default: qwen3\.8-max/.test(diffText) && /\+ *default: deepseek-v4-pro/.test(diffText),
-  );
-  await shot("04-modal-diff");
-
-  await modal.getByRole("button", { name: "确认切换" }).click();
-  await page.locator("#toast:not([hidden])").filter({ hasText: "已切换" }).waitFor();
-  const toastText = await page.locator("#toast").innerText();
-  check("toast 报告切换成功 + 备份位置", toastText.includes("已切换") && toastText.includes("backups"), toastText);
-  await shot("05-after-switch");
-
-  const cfg = readFileSync(join(HOME_DIR, ".hermes/config.yaml"), "utf8");
-  check(
-    "配置文件真实变更（default/provider/base_url）",
-    cfg.includes("default: deepseek-v4-pro") &&
-      cfg.includes("provider: ds") &&
-      cfg.includes("base_url: https://api.deepseek.com"),
-  );
-  const backups = backend.listBackups();
-  const configBackup = backups.find((backup) => backup.files.includes("config.yaml"));
-  check(
-    "备份写入 backups/<timestamp>/config.yaml",
-    configBackup != null && /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(configBackup.ts),
-    JSON.stringify(backups),
-  );
-  const bcontent = readFileSync(join(DATA_DIR, "backups", configBackup.ts, "config.yaml"), "utf8");
-  check("备份内容 = 切换前的原始配置", bcontent.includes("default: qwen3.8-max"));
-  check("其余配置内容未被破坏（agent 段保留）", cfg.includes("agent:") && cfg.includes("max_turns: 60"));
-
-  const rowText2 = (await row.innerText()).replace(/\n/g, " | ");
-  check(
-    "切换后行状态实时刷新为 matched + 新模型",
-    rowText2.includes("生效中 · 已识别") && rowText2.includes("deepseek-v4-pro"),
-    rowText2,
-  );
-  check(
-    "窗口切换后托盘同步刷新为新模型",
-    backend.trayTools().some((tool) =>
-      tool.label.includes("Hermes · deepseek-v4-pro（已识别）"),
-    ),
-  );
-
-  await row.click();
-  await drawer.getByRole("button", { name: "历史版本", exact: true }).click();
-  const backupCard = drawer.locator(".backup-card").first();
-  await backupCard.waitFor();
-  const backupText = await backupCard.innerText();
-  check(
-    "备份列表显示工具、时间和原文件路径",
-    backupText.includes("Hermes") &&
-      backupText.includes(join(HOME_DIR, ".hermes/config.yaml")) &&
-      /\d{4}/.test(backupText),
-    backupText.replace(/\n/g, " | "),
-  );
-  const backupRecordsBeforeRestore = backend.listBackupRecords().length;
-  page.once("dialog", (dialog) => dialog.accept());
-  await backupCard.getByRole("button", { name: "恢复此版本" }).click();
-  await page.getByText("已恢复 · 当前版本已自动备份 · 状态已刷新").waitFor();
-
-  const restored = readFileSync(join(HOME_DIR, ".hermes/config.yaml"), "utf8");
-  check("一键恢复写回切换前内容", restored.includes("default: qwen3.8-max"));
-  check("恢复动作先备份当前版本", backend.listBackupRecords().length === backupRecordsBeforeRestore + 1);
-  check(
-    "恢复前备份保留中间状态",
-    backend
-      .listBackupRecords()
-      .some((record) => readFileSync(record.backupPath, "utf8").includes("default: deepseek-v4-pro")),
-  );
-  await drawer.getByRole("button", { name: "历史版本", exact: true }).click();
   await page.locator("#overlay").click({ position: { x: 5, y: 5 } });
-  const restoredRowText = (await row.innerText()).replace(/\n/g, " | ");
-  check(
-    "恢复后重读状态为旧模型 matched",
-    restoredRowText.includes("生效中 · 已识别") && restoredRowText.includes("qwen3.8-max"),
-    restoredRowText,
-  );
 
-  writeFileSync(
-    join(HOME_DIR, ".hermes/config.yaml"),
-    restored.replace(
-      "base_url: https://token-plan.cn-beijing.maas.aliyuncs.com",
-      "base_url: https://rogue.example.com/v1",
-    ),
-  );
-  await page.getByRole("button", { name: "刷新" }).click();
-  await page.waitForTimeout(600);
-  const rowText3 = (await row.innerText()).replace(/\n/g, " | ");
-  check("手改配置后刷新为 未识别", rowText3.includes("未识别"), rowText3);
-  await shot("06-unknown");
-
-  const trayTarget = backend
-    .trayTools()
-    .find((tool) => tool.toolId === "hermes")
-    .plans.find((plan) => plan.label === "Alibaba Token Plan")
-    .items.find((item) => item.label === "qwen-plus");
-  const trayActionHandler = backend.eventHandler("tray-action");
-  await page.evaluate(
-    ({ handler, payload }) =>
-      window.__runTauriCallback(handler, { event: "tray-action", id: 1, payload }),
-    { handler: trayActionHandler, payload: trayTarget.id },
-  );
-  await page.waitForFunction(
-    () => document.querySelector("tr[data-tool='hermes']")?.textContent?.includes("qwen-plus"),
-  );
-  const cfgAfterTray = readFileSync(join(HOME_DIR, ".hermes/config.yaml"), "utf8");
+  const codexRow = page.locator("tr[data-tool='codex']");
+  await codexRow.waitFor();
+  await codexRow.click();
+  const codexDrawer = page.locator("#drawer");
+  await codexDrawer.getByRole("button", { name: "绑定 Group" }).click();
+  const bindModal = page.locator("#modal");
+  await bindModal.getByRole("button", { name: /DEFAULT/ }).click();
+  const bindDiff = bindModal.locator(".diff");
+  await bindDiff.waitFor();
+  const bindDiffText = await bindDiff.innerText();
   check(
-    "托盘点击复用备份 + 原子写 + 重读路径",
-    cfgAfterTray.includes("default: qwen-plus") &&
-      cfgAfterTray.includes("base_url: https://token-plan.cn-beijing.maas.aliyuncs.com"),
+    "Group 绑定 diff 写入固定契约和 env_key",
+    bindDiffText.includes("PLANDECK_GROUP_DEFAULT_API_KEY") && !bindDiffText.includes("minimax-e2e-key"),
+    bindDiffText,
+  );
+  await bindModal.getByRole("button", { name: "确认绑定" }).click();
+  await page.locator("#toast:not([hidden])").filter({ hasText: "已绑定 DEFAULT" }).waitFor();
+  const codexConfigPath = join(HOME_DIR, ".codex/config.toml");
+  const codexConfig = readFileSync(codexConfigPath, "utf8");
+  check(
+    "Codex 绑定只写 env_key，不写明文凭据",
+    codexConfig.includes('env_key = "PLANDECK_GROUP_DEFAULT_API_KEY"') &&
+      !codexConfig.includes("minimax-e2e-key") &&
+      !codexConfig.includes("minimax-backup-e2e-key"),
   );
   check(
-    "托盘切换后窗口同步刷新",
-    (await row.innerText()).includes("qwen-plus") && (await row.innerText()).includes("生效中 · 已识别"),
+    "绑定保存 Tool → Group 关系",
+    backend.environmentSaveCalls().at(-1)?.bindings?.some((binding) => binding.toolId === "CODEX" && binding.groupId === "DEFAULT"),
   );
-  check("托盘切换写前新增备份", backend.listBackupRecords().length === backupRecordsBeforeRestore + 2);
 
-  await row.click();
-  await drawer.getByRole("button", { name: "编辑", exact: true }).click();
+  const selectedBefore = backend.environmentSelectCalls().length;
+  await codexRow.click();
+  await codexDrawer.getByRole("button", { name: "切换账号" }).click();
+  const selectModal = page.locator("#modal");
+  const backupPick = selectModal.locator(".pick").filter({ hasText: "MiniMax Backup" });
+  await backupPick.click();
+  await selectModal.getByRole("button", { name: "确认选择" }).click();
+  await page.locator("#toast:not([hidden])").filter({ hasText: "重启 Codex 后生效" }).waitFor();
+  const codexAfterSelect = readFileSync(codexConfigPath, "utf8");
+  check(
+    "切换 Group 成员只更新 SELECTED，不改 Tool 配置",
+    backend.environmentSelectCalls().length === selectedBefore + 1 &&
+      backend.environmentSelectCalls().at(-1)?.groupId === "DEFAULT" &&
+      backend.environmentSelectCalls().at(-1)?.planId === "MINIMAX_BACKUP" &&
+      codexAfterSelect === codexConfig,
+  );
+  await codexRow.click();
+  check("切换后抽屉状态标记为需要重启", (await codexDrawer.innerText()).includes("需要重启 Tool"));
+
+  await codexDrawer.getByRole("button", { name: "编辑", exact: true }).click();
   await page.waitForTimeout(300);
-  check("「编辑」调用系统编辑器命令", backend.openedInEditor.includes(join(HOME_DIR, ".hermes/config.yaml")));
+  check("绑定后仍可调用系统编辑器命令", backend.openedInEditor.includes(codexConfigPath));
 
   check("前端无运行时错误", pageErrors.length === 0, pageErrors.slice(0, 3).join(" ;; "));
 

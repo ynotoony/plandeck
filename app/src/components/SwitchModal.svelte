@@ -1,78 +1,98 @@
 <script lang="ts">
   import { commitSwitch } from "@plandeck/core";
-  import type { FileEdit, Plan } from "@plandeck/core";
-  import { adapterFor, appState, refresh, toolName, updateTool } from "../lib/state.svelte";
+  import type { FileEdit, Plan, SubscriptionGroup } from "@plandeck/core";
+  import {
+    adapterFor,
+    appState,
+    contractForGroup,
+    groupForTool,
+    refresh,
+    saveToolBinding,
+    selectEnvironmentPlan,
+    toolName,
+    updateTool,
+  } from "../lib/state.svelte";
   import { backupFiles, tauriFs } from "../lib/tauri-fs";
   import { toast } from "../lib/toast.svelte";
   import { refreshTray } from "../lib/tray";
   import DiffView from "./DiffView.svelte";
-  import StatusBadge from "./StatusBadge.svelte";
 
-  let {
-    toolId,
-    onCancel,
-    onDone,
-  }: {
-    toolId: string;
-    onCancel: () => void;
-    onDone: () => void;
-  } = $props();
+  let { toolId, onCancel, onDone }: { toolId: string; onCancel: () => void; onDone: () => void } = $props();
 
   const adapter = $derived(adapterFor(toolId));
-
+  const boundGroup = $derived(groupForTool(toolId));
+  const selectingMember = $derived(boundGroup != null);
+  let groupId = $state<string | null>(null);
   let planId = $state<string | null>(null);
-  let model = $state<string | null>(null);
   let edits = $state<FileEdit[] | null>(null);
   let previewError = $state("");
   let busy = $state(false);
   let previewVersion = 0;
 
-  const plan = $derived(appState.catalog.plans.find((p) => p.id === planId) ?? null);
+  const selectedGroup = $derived(
+    selectingMember ? boundGroup : appState.environment.groups.find((group) => group.id === groupId),
+  );
+  const memberPlans = $derived(
+    selectedGroup
+      ? selectedGroup.members
+          .map((id) => appState.catalog.plans.find((plan) => plan.id === id))
+          .filter((plan): plan is Plan => plan != null)
+      : [],
+  );
 
   $effect(() => {
-    const p = plan;
-    const m = model;
+    const group = selectedGroup;
     const version = ++previewVersion;
     edits = null;
     previewError = "";
-    if (!adapter || !p || !m) return;
+    if (selectingMember) {
+      if (planId) edits = [];
+      return;
+    }
+    if (!adapter || !group || !adapter.groupChange) return;
     adapter
-      .planChange(p, m)
-      .then((e) => {
-        if (version === previewVersion) edits = e;
+      .groupChange(contractForGroup(group))
+      .then((result) => {
+        if (version === previewVersion) edits = result;
       })
-      .catch((e: unknown) => {
-        if (version === previewVersion) previewError = String(e);
+      .catch((error: unknown) => {
+        if (version === previewVersion) previewError = String(error);
       });
   });
 
-  function pickPlan(p: Plan): void {
-    if (p.source === "oauth") {
-      toast("OAuth 型订阅需在对应 Tool 内切换登录", "err");
-      return;
-    }
-    planId = p.id;
-    model = null;
+  function chooseGroup(group: SubscriptionGroup): void {
+    groupId = group.id;
+    planId = null;
   }
 
   async function confirm(): Promise<void> {
-    if (!adapter || !edits) return;
+    if (!adapter || !selectedGroup || edits == null) return;
     busy = true;
     try {
-      const { state, backups } = await commitSwitch(
-        adapter,
-        edits,
-        tauriFs,
-        (paths) => backupFiles(toolId, paths),
-      );
-      updateTool(state);
+      if (selectingMember) {
+        if (!planId) return;
+        await selectEnvironmentPlan(selectedGroup.id, planId);
+        const current = appState.tools.find((tool) => tool.toolId === toolId);
+        if (current) updateTool({ ...current, plan: planId, bindingStatus: "needs-restart" });
+        const plan = appState.catalog.plans.find((item) => item.id === planId);
+        toast(`已选择 ${plan?.name ?? planId}；重启 ${toolName(toolId)} 后生效`);
+      } else {
+        const { state, backups } = await commitSwitch(
+          adapter,
+          edits,
+          tauriFs,
+          (paths) => backupFiles(toolId, paths),
+        );
+        await saveToolBinding(toolId, selectedGroup.id);
+        updateTool({ ...state, groupId: selectedGroup.id, bindingStatus: "needs-restart" });
+        const first = backups[0];
+        const dir = first ? first.slice(0, first.lastIndexOf("/")) : "";
+        toast(`已绑定 ${selectedGroup.id}；重启 ${toolName(toolId)} 后生效${dir ? `；备份于 ${dir}` : ""}`);
+      }
       await refreshTray();
-      const first = backups[0];
-      const dir = first ? first.slice(0, first.lastIndexOf("/")) : "";
-      toast(`已切换 · 配置已更新${dir ? ` · 备份于 ${dir}` : ""}`);
       onDone();
-    } catch (e) {
-      toast(String(e), "err");
+    } catch (error) {
+      toast(String(error), "err");
       await refresh().catch(() => {});
     } finally {
       busy = false;
@@ -82,52 +102,47 @@
 
 <div id="modalWrap">
   <div id="modal">
-    <h2>切换 {toolName(toolId)} 的默认 Plan / 模型</h2>
+    <h2>{selectingMember ? `切换 ${toolName(toolId)} 的订阅账号` : `绑定 ${toolName(toolId)} 到 Group`}</h2>
 
-    <div class="step">1 · 选 Plan（OAuth 型不可在此切换）</div>
-    {#each appState.catalog.plans as p (p.id)}
-      <button
-        type="button"
-        class="pick {planId === p.id ? 'on' : ''} {p.source === 'oauth' ? 'dis' : ''}"
-        disabled={p.source === "oauth"}
-        onclick={() => pickPlan(p)}
-      >
-        <span><b>{p.name}</b> <span class="dim small">{p.sourceDetail ?? p.source}</span></span>
-        {#if p.source === "oauth"}<StatusBadge status="oauth" />{/if}
-      </button>
+    {#if !adapter?.environmentSupport.supported}
+      <p class="dim">{adapter?.environmentSupport.reason ?? "此 Tool 不支持直接环境变量"}</p>
+    {:else if selectingMember && selectedGroup}
+      <div class="step">Group {selectedGroup.id} · 固定模型 {selectedGroup.model}</div>
+      {#each memberPlans as plan (plan.id)}
+        <button type="button" class="pick {planId === plan.id ? 'on' : ''}" onclick={() => (planId = plan.id)}>
+          <span><b>{plan.name}</b> <span class="dim small">{plan.credentialFingerprint ?? "未设置凭据"}</span></span>
+          {#if selectedGroup.selected === plan.id}<span class="badge b-ok">当前</span>{/if}
+        </button>
+      {:else}
+        <p class="dim">该 Group 没有可用成员。</p>
+      {/each}
+      <div class="step">只更新 subscriptions.env；Tool 配置不会改写</div>
     {:else}
-      <div class="dim">Catalog 还没有 Plan —— 首次启动导入见票 08</div>
-    {/each}
+      <div class="step">1 · 选择兼容 Group</div>
+      {#each appState.environment.groups as group (group.id)}
+        <button type="button" class="pick {groupId === group.id ? 'on' : ''}" onclick={() => chooseGroup(group)}>
+          <span><b>{group.id}</b> <span class="dim small">{group.provider} · {group.model}</span></span>
+        </button>
+      {:else}
+        <p class="dim">没有可绑定的 Group。先在 Plan 页面创建 Group。</p>
+      {/each}
 
-    <div class="step">2 · 选模型</div>
-    <div>
-      {#if plan}
-        {#each plan.models as m (m)}
-          <button type="button" class="chip {model === m ? 'on' : ''}" onclick={() => (model = m)}
-            >{m}</button>
+      {#if selectedGroup}
+        <div class="step">2 · Tool 配置投影（写前自动备份）</div>
+        {#if previewError}
+          <div class="dim">{previewError}</div>
+        {:else if edits}
+          <DiffView {edits} />
         {:else}
-          <span class="dim">该 Plan 未记录可用模型</span>
-        {/each}
-      {:else}
-        <span class="dim">先选一个 Plan</span>
-      {/if}
-    </div>
-
-    {#if plan && model}
-      <div class="step">3 · 将写入（写前自动备份）</div>
-      {#if previewError}
-        <div class="dim">{previewError}</div>
-      {:else if edits}
-        <DiffView {edits} />
-      {:else}
-        <div class="dim">生成 diff 中…</div>
+          <div class="dim">生成 diff 中…</div>
+        {/if}
       {/if}
     {/if}
 
     <div class="modal-foot">
       <button class="btn ghost" onclick={onCancel}>取消</button>
-      <button class="btn" disabled={!edits || busy} onclick={confirm}>
-        {busy ? "切换中…" : "确认切换"}
+      <button class="btn" disabled={edits == null || busy || (selectingMember && !planId)} onclick={confirm}>
+        {busy ? "保存中…" : selectingMember ? "确认选择" : "确认绑定"}
       </button>
     </div>
   </div>

@@ -7,6 +7,7 @@ import {
   newPlanId,
   removePlan,
   saveCatalog,
+  stripCatalogCredentials,
   upsertPlan,
 } from "../src/catalog.js";
 import { nodeFs } from "../src/node-fs.js";
@@ -26,7 +27,7 @@ describe("Catalog 存储", () => {
     const file = join(home, "plandeck", "catalog.json");
     const catalog = loadFixtureCatalog();
     await saveCatalog(file, catalog, nodeFs);
-    expect(await loadCatalog(file, nodeFs)).toEqual(catalog);
+    expect(await loadCatalog(file, nodeFs)).toEqual(stripCatalogCredentials(catalog));
   });
 
   it("文件权限 600", async () => {
@@ -56,7 +57,9 @@ describe("Catalog 存储", () => {
     await saveCatalog(file, catalog, nodeFs);
     const reloaded = await loadCatalog(file, nodeFs);
     expect(reloaded.plans.map((p) => p.id)).toContain("env-minimax");
-    expect(reloaded.plans.find((p) => p.id === "env-minimax")).toEqual(minimax);
+    expect(reloaded.plans.find((p) => p.id === "env-minimax")).toEqual(
+      stripCatalogCredentials({ version: 1, plans: [minimax] }).plans[0],
+    );
     expect(statSync(file).mode & 0o777).toBe(0o600);
   });
 });

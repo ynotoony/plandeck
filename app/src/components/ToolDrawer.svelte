@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { adapterFor, appState, toolName } from "../lib/state.svelte";
+  import type { EnvironmentBindingStatus } from "@plandeck/core";
+  import { adapterFor, appState, groupForTool, saveToolBinding, toolName } from "../lib/state.svelte";
   import { openInEditor } from "../lib/tauri-fs";
   import { toast } from "../lib/toast.svelte";
   import StatusBadge from "./StatusBadge.svelte";
@@ -15,6 +16,7 @@
 
   const tool = $derived(appState.tools.find((t) => t.toolId === toolId));
   const adapter = $derived(adapterFor(toolId));
+  const group = $derived(groupForTool(toolId));
   const planName = $derived(
     tool?.plan
       ? (appState.catalog.plans.find((p) => p.id === tool.plan)?.name ?? tool.plan)
@@ -30,6 +32,27 @@
       toast(String(e), "err");
     }
   }
+
+  async function unbind(): Promise<void> {
+    if (!confirm(`解除 ${toolName(toolId)} 的 Group 绑定？Tool 配置文件不会自动回退。`)) return;
+    try {
+      await saveToolBinding(toolId, null);
+      toast("已解除绑定；现有 Tool 配置保持不变");
+    } catch (error) {
+      toast(String(error), "err");
+    }
+  }
+
+  function bindingLabel(status: EnvironmentBindingStatus | undefined): string {
+    return ({
+      bound: "已绑定",
+      "needs-reload": "需要重新加载 shell",
+      "needs-restart": "需要重启 Tool",
+      "invalid-group": "Group 无效",
+      "unsupported-env": "不支持直接环境变量",
+      drifted: "配置已漂移",
+    } as Record<string, string>)[status ?? ""] ?? "未绑定";
+  }
 </script>
 
 <aside id="drawer">
@@ -40,6 +63,8 @@
       <dd class="model">{tool.defaultModel ?? "（未设置）"}</dd>
       <dt>Plan</dt>
       <dd>{planName ?? "—"}</dd>
+      <dt>环境 Group</dt>
+      <dd>{group?.id ?? "—"} · {bindingLabel(tool.bindingStatus)}</dd>
       <dt>配置文件</dt>
       <dd class="mono dim">{adapter?.configPath ?? "—"}</dd>
       {#if tool.note}
@@ -48,8 +73,9 @@
       {/if}
     </dl>
     <div class="actions">
-      {#if tool.status !== "oauth"}
-        <button class="btn" onclick={onSwitch}>切换</button>
+      {#if adapter?.environmentSupport.supported}
+        <button class="btn" onclick={onSwitch}>{group ? "切换账号" : "绑定 Group"}</button>
+        {#if group}<button class="btn ghost" onclick={unbind}>解除绑定</button>{/if}
       {/if}
       <button class="btn ghost" class:active={showHistory} onclick={() => (showHistory = !showHistory)}>历史版本</button>
       <button class="btn ghost" onclick={openConfig}>编辑</button>
@@ -63,6 +89,7 @@
     <p class="dim hint">
       项目 / 会话层只读；切换只作用于工具层默认。
       {#if tool.status === "oauth"}OAuth 登录型 —— 请在对应 Tool 内切换登录。{/if}
+      {#if !adapter?.environmentSupport.supported}{adapter?.environmentSupport.reason}{/if}
     </p>
   {/if}
 </aside>

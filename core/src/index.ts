@@ -2,6 +2,7 @@ export * from "./types.js";
 export * from "./recognize.js";
 export * from "./catalog.js";
 export * from "./env.js";
+export * from "./environment.js";
 export * from "./ccswitch.js";
 export * from "./apply.js";
 export * from "./switch.js";

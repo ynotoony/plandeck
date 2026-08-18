@@ -45,6 +45,12 @@ function sourceInfo(plan: Plan): { sourceLabel: string; credential: string } {
     plan.source === "oauth" ? "OAuth" : plan.source === "env" ? "env" : "config";
   const sourceLabel = plan.sourceDetail ? `${label} · ${plan.sourceDetail}` : label;
   if (plan.source === "oauth") return { sourceLabel, credential: "登录会话" };
+  if (plan.hasCredential || plan.credentialFingerprint) {
+    return {
+      sourceLabel,
+      credential: plan.credentialFingerprint ? `已设置 · ${plan.credentialFingerprint}` : "已设置",
+    };
+  }
   if (!plan.key) return { sourceLabel, credential: "—" };
   return {
     sourceLabel,

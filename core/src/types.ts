@@ -21,6 +21,8 @@ export interface ToolState {
   plan?: string;
   baseUrl?: string;
   note?: string;
+  groupId?: string;
+  bindingStatus?: EnvironmentBindingStatus;
   projects: ProjectState[];
 }
 
@@ -39,10 +41,33 @@ export interface Plan {
   sourceDetail?: string;
   providerId?: string;
   baseUrl?: string;
+  /** @deprecated Legacy migration/fixture compatibility. Environment Plans never expose this field. */
   key?: string;
+  hasCredential?: boolean;
   credentialFingerprint?: string;
   models: string[];
   note?: string;
+}
+
+export type EnvironmentBindingStatus =
+  | "bound"
+  | "needs-reload"
+  | "needs-restart"
+  | "invalid-group"
+  | "unsupported-env"
+  | "drifted";
+
+export interface GroupContract {
+  id: string;
+  provider: string;
+  baseUrl: string;
+  model: string;
+  credentialEnvVar: string;
+}
+
+export interface EnvironmentSupport {
+  supported: boolean;
+  reason?: string;
 }
 
 export interface Catalog {
@@ -77,6 +102,8 @@ export interface Adapter {
   readState(): Promise<ToolState>;
   readFragment(): Promise<ConfigFragment | null>;
   planChange(plan: Plan, model: string): Promise<FileEdit[]>;
+  environmentSupport: EnvironmentSupport;
+  groupChange?(group: GroupContract): Promise<FileEdit[]>;
 }
 
 export interface AdapterContext {

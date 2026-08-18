@@ -29,9 +29,47 @@ export function createMockBackend({
   let envVars = initialEnvVars;
   const planTestCalls = [];
   const updateInstallCalls = [];
+  const environmentSaveCalls = [];
+  const environmentSelectCalls = [];
+  const loaderInstallCalls = [];
+  let migrationPreview = { candidatePlans: 0, candidateSources: [], warnings: [] };
+  let migrationResult = { importedPlans: 0, removedCatalogKeys: 0, removedShellAssignments: 0, backups: [], affectedPaths: [] };
   let availableUpdate = update;
   let updateCheckCount = 0;
   let releaseHistoryCount = 0;
+  const environmentCredentials = new Map();
+  let environmentCatalog = {
+    version: "1",
+    plans: Object.entries(envVars)
+      .filter(([name, value]) => /_(API_?KEY|AUTH_?TOKEN|ACCESS_?TOKEN)$/i.test(name) && value.trim())
+      .map(([name, value]) => {
+        const id = name.replace(/_(API_?KEY|AUTH_?TOKEN|ACCESS_?TOKEN)$/i, "").toUpperCase();
+        environmentCredentials.set(id, value);
+        const definition = {
+          MINIMAX: {
+            name: "MiniMax Primary",
+            provider: "openai-compatible",
+            baseUrl: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            models: ["qwen3.8-max"],
+          },
+          MINIMAX_BACKUP: {
+            name: "MiniMax Backup",
+            provider: "openai-compatible",
+            baseUrl: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            models: ["qwen3.8-max"],
+          },
+        }[id] ?? { name: id, provider: "", baseUrl: "", models: [] };
+        return {
+          id,
+          ...definition,
+          hasCredential: true,
+          credentialFingerprint: createHash("sha256").update(value).digest("hex").slice(0, 12),
+        };
+      }),
+    groups: [],
+    bindings: [],
+    errors: [],
+  };
 
   function localTimestamp() {
     const d = new Date();
@@ -163,6 +201,51 @@ export function createMockBackend({
         return homeDir;
       case "data_dir":
         return dataDir;
+      case "environment_catalog":
+        return environmentCatalog;
+      case "environment_save": {
+        environmentSaveCalls.push(structuredClone(args.document));
+        const oldPlans = new Map(environmentCatalog.plans.map((plan) => [plan.id, plan]));
+        environmentCatalog = {
+          version: args.document.version,
+          plans: args.document.plans.map((plan) => {
+            if (plan.clearCredential) environmentCredentials.delete(plan.id);
+            else if (plan.credential) environmentCredentials.set(plan.id, plan.credential);
+            const credential = environmentCredentials.get(plan.id);
+            return {
+              id: plan.id,
+              name: plan.name,
+              provider: plan.provider,
+              baseUrl: plan.baseUrl,
+              models: plan.models,
+              hasCredential: Boolean(credential),
+              credentialFingerprint: credential
+                ? createHash("sha256").update(credential).digest("hex").slice(0, 12)
+                : oldPlans.get(plan.id)?.credentialFingerprint,
+            };
+          }),
+          groups: args.document.groups,
+          bindings: args.document.bindings,
+          errors: [],
+        };
+        return environmentCatalog;
+      }
+      case "environment_select":
+        environmentSelectCalls.push({ groupId: args.groupId, planId: args.planId });
+        environmentCatalog = {
+          ...environmentCatalog,
+          groups: environmentCatalog.groups.map((group) =>
+            group.id === args.groupId ? { ...group, selected: args.planId } : group,
+          ),
+        };
+        return environmentCatalog;
+      case "environment_install_loader":
+        loaderInstallCalls.push(true);
+        return { installed: [join(homeDir, ".config/ai-subscriptions/load.zsh"), join(homeDir, ".local/bin/ai-env-run"), join(homeDir, ".zshenv")], backups: [] };
+      case "environment_migration_preview":
+        return migrationPreview;
+      case "environment_migrate_legacy":
+        return migrationResult;
       case "app_version":
         return "0.1.0";
       case "check_for_update":
@@ -200,6 +283,9 @@ export function createMockBackend({
           });
       case "test_plan":
         planTestCalls.push({ baseUrl: args.baseUrl, key: args.key, model: args.model });
+        return { status: "available", message: "连接成功，模型可用（HTTP 200）" };
+      case "environment_test_plan":
+        planTestCalls.push({ planId: args.planId, model: args.model });
         return { status: "available", message: "连接成功，模型可用（HTTP 200）" };
       default:
         throw new Error(`unknown command: ${cmd}`);
@@ -254,6 +340,11 @@ export function createMockBackend({
     eventHandler: (event) => eventHandlers.get(event),
     setEnvVars: (next) => (envVars = next),
     planTestCalls: () => planTestCalls,
+    environmentSaveCalls: () => environmentSaveCalls,
+    environmentSelectCalls: () => environmentSelectCalls,
+    loaderInstallCalls: () => loaderInstallCalls,
+    setMigrationPreview: (next) => (migrationPreview = next),
+    setMigrationResult: (next) => (migrationResult = next),
     updateCheckCount: () => updateCheckCount,
     updateInstallCalls: () => updateInstallCalls,
     releaseHistoryCount: () => releaseHistoryCount,

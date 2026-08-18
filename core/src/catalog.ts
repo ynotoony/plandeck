@@ -5,6 +5,13 @@ export function emptyCatalog(): Catalog {
   return { version: 1, plans: [] };
 }
 
+export function stripCatalogCredentials(catalog: Catalog): Catalog {
+  return {
+    ...catalog,
+    plans: catalog.plans.map(({ key: _key, ...plan }) => plan),
+  };
+}
+
 export function upsertPlan(catalog: Catalog, plan: Plan): Catalog {
   const exists = catalog.plans.some((p) => p.id === plan.id);
   return {
@@ -36,7 +43,7 @@ export async function loadCatalog(filePath: string, fs: FsPort): Promise<Catalog
   if (!(await fs.exists(filePath))) return emptyCatalog();
   const parsed = JSON.parse(await fs.read(filePath)) as Catalog;
   if (!parsed || !Array.isArray(parsed.plans)) return emptyCatalog();
-  return parsed;
+  return stripCatalogCredentials(parsed);
 }
 
 export async function saveCatalog(
@@ -44,5 +51,5 @@ export async function saveCatalog(
   catalog: Catalog,
   fs: FsPort,
 ): Promise<void> {
-  await fs.write(filePath, JSON.stringify(catalog, null, 2) + "\n", { mode: 0o600 });
+  await fs.write(filePath, JSON.stringify(stripCatalogCredentials(catalog), null, 2) + "\n", { mode: 0o600 });
 }

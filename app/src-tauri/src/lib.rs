@@ -1,8 +1,13 @@
+mod environment;
 mod fsx;
 
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
+use environment::{
+    EnvironmentCatalogView, EnvironmentCatalogWrite, EnvironmentStore, LoaderInstallResult,
+    MigrationPreview, MigrationResult,
+};
 use rusqlite::{
     params_from_iter,
     types::{Value, ValueRef},
@@ -215,6 +220,47 @@ fn data_dir(state: tauri::State<AppState>) -> String {
     state.data_dir.clone()
 }
 
+#[tauri::command]
+fn environment_catalog(state: tauri::State<AppState>) -> Result<EnvironmentCatalogView, String> {
+    EnvironmentStore::new(&state.home_dir, &state.data_dir).read()
+}
+
+#[tauri::command]
+fn environment_save(
+    state: tauri::State<AppState>,
+    document: EnvironmentCatalogWrite,
+) -> Result<EnvironmentCatalogView, String> {
+    EnvironmentStore::new(&state.home_dir, &state.data_dir).save(document)
+}
+
+#[tauri::command]
+fn environment_select(
+    state: tauri::State<AppState>,
+    group_id: String,
+    plan_id: String,
+) -> Result<EnvironmentCatalogView, String> {
+    EnvironmentStore::new(&state.home_dir, &state.data_dir).select(&group_id, &plan_id)
+}
+
+#[tauri::command]
+fn environment_install_loader(
+    state: tauri::State<AppState>,
+) -> Result<LoaderInstallResult, String> {
+    EnvironmentStore::new(&state.home_dir, &state.data_dir).install_loader()
+}
+
+#[tauri::command]
+fn environment_migration_preview(
+    state: tauri::State<AppState>,
+) -> Result<MigrationPreview, String> {
+    EnvironmentStore::new(&state.home_dir, &state.data_dir).migration_preview()
+}
+
+#[tauri::command]
+fn environment_migrate_legacy(state: tauri::State<AppState>) -> Result<MigrationResult, String> {
+    EnvironmentStore::new(&state.home_dir, &state.data_dir).migrate_legacy()
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct EnvPlan {
@@ -389,6 +435,25 @@ fn valid_completion_response(body: &serde_json::Value) -> bool {
 
 #[tauri::command]
 async fn test_plan(base_url: String, key: String, model: String) -> Result<PlanTestResult, String> {
+    test_plan_request(&base_url, &key, &model).await
+}
+
+#[tauri::command]
+async fn environment_test_plan(
+    state: tauri::State<'_, AppState>,
+    plan_id: String,
+    model: String,
+) -> Result<PlanTestResult, String> {
+    let (base_url, key) =
+        EnvironmentStore::new(&state.home_dir, &state.data_dir).plan_test_input(&plan_id)?;
+    test_plan_request(&base_url, &key, &model).await
+}
+
+async fn test_plan_request(
+    base_url: &str,
+    key: &str,
+    model: &str,
+) -> Result<PlanTestResult, String> {
     let base_url = base_url.trim().trim_end_matches('/');
     let key = key.trim();
     let model = model.trim();
@@ -573,9 +638,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            #[cfg(target_os = "macos")]
-            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-
             let home_dir = env_or("PLANDECK_HOME", || {
                 app.path()
                     .home_dir()
@@ -635,9 +697,16 @@ pub fn run() {
             open_in_editor,
             home_dir,
             data_dir,
+            environment_catalog,
+            environment_save,
+            environment_select,
+            environment_install_loader,
+            environment_migration_preview,
+            environment_migrate_legacy,
             app_version,
             env_plans,
             test_plan,
+            environment_test_plan,
             check_for_update,
             release_history,
             install_update,

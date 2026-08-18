@@ -4,6 +4,7 @@ import type {
   AdapterContext,
   ConfigFragment,
   FileEdit,
+  GroupContract,
   Plan,
   ProjectState,
   SessionState,
@@ -114,6 +115,16 @@ export function createClaudeAdapter(ctx: AdapterContext): Adapter {
     return [{ path: configPath, oldText, newText }];
   }
 
+  async function groupChange(group: GroupContract): Promise<FileEdit[]> {
+    const oldText = await readOrEmpty(ctx.fs, configPath);
+    let newText = oldText === "" ? "{}\n" : oldText;
+    newText = jsonSet(newText, ["env", "ANTHROPIC_BASE_URL"], group.baseUrl);
+    newText = jsonSet(newText, ["env", "ANTHROPIC_MODEL"], group.model);
+    newText = jsonSet(newText, ["env", "ANTHROPIC_AUTH_TOKEN"], undefined);
+    newText = jsonSet(newText, ["env", "ANTHROPIC_API_KEY"], undefined);
+    return [{ path: configPath, oldText, newText }];
+  }
+
   return {
     toolId: CLAUDE_TOOL_ID,
     toolName: "Claude Code",
@@ -121,5 +132,7 @@ export function createClaudeAdapter(ctx: AdapterContext): Adapter {
     readState,
     readFragment,
     planChange,
+    environmentSupport: { supported: true },
+    groupChange,
   };
 }

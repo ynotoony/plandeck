@@ -1,8 +1,15 @@
-import { commitSwitch, deriveTrayMenu, parseTrayAction } from "@plandeck/core";
+import { deriveTrayMenu, parseTrayAction } from "@plandeck/core";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { adapterFor, appState, refresh, toolName, updateTool } from "./state.svelte";
-import { backupFiles, tauriFs } from "./tauri-fs";
+import {
+  adapterFor,
+  appState,
+  groupForTool,
+  refresh,
+  selectEnvironmentPlan,
+  toolName,
+  updateTool,
+} from "./state.svelte";
 import { toast } from "./toast.svelte";
 
 let refreshChain = Promise.resolve();
@@ -11,7 +18,21 @@ let initialized = false;
 export async function refreshTray(): Promise<void> {
   refreshChain = refreshChain.catch(() => undefined).then(async () => {
     const names = Object.fromEntries(appState.tools.map((tool) => [tool.toolId, toolName(tool.toolId)]));
-    const tools = deriveTrayMenu(appState.tools, appState.catalog, names);
+    const tools = deriveTrayMenu(appState.tools, appState.catalog, names).map((tool) => {
+      const adapter = adapterFor(tool.toolId);
+      const group = groupForTool(tool.toolId);
+      if (!adapter?.environmentSupport.supported || !group) return { ...tool, plans: [] };
+      const members = new Set(group.members);
+      return {
+        ...tool,
+        plans: tool.plans
+          .filter((plan) => members.has(plan.id))
+          .map((plan) => ({
+            ...plan,
+            items: plan.items.filter((item) => item.id.endsWith(`:${group.model}`)),
+          })),
+      };
+    });
     await invoke("tray_set_menu", { tools });
   });
   await refreshChain;
@@ -24,20 +45,20 @@ export async function initTray(): Promise<void> {
   await listen<string>("tray-action", async ({ payload }) => {
     const action = parseTrayAction(payload);
     if (!action) return;
-    const adapter = adapterFor(action.toolId);
     const plan = appState.catalog.plans.find((candidate) => candidate.id === action.planId);
-    if (!adapter || !plan) return;
+    if (!plan) return;
 
     try {
-      const edits = await adapter.planChange(plan, action.model);
-      const { state } = await commitSwitch(
-        adapter,
-        edits,
-        tauriFs,
-        (paths) => backupFiles(adapter.toolId, paths),
-      );
-      updateTool(state);
-      await refreshTray();
+      const group = groupForTool(action.toolId);
+      if (group) {
+        await selectEnvironmentPlan(group.id, plan.id);
+        const current = appState.tools.find((tool) => tool.toolId === action.toolId);
+        if (current) updateTool({ ...current, plan: plan.id, bindingStatus: "needs-restart" });
+        toast(`已选择 ${plan.name}；重启 ${toolName(action.toolId)} 后生效`);
+        await refreshTray();
+        return;
+      }
+      throw new Error("请先绑定 Group，再从托盘切换订阅账号");
     } catch (error) {
       toast(String(error), "err");
       await refresh().catch(() => {});

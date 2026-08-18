@@ -4,6 +4,7 @@ import type {
   AdapterContext,
   ConfigFragment,
   FileEdit,
+  GroupContract,
   Plan,
   ProjectState,
   SessionState,
@@ -159,6 +160,15 @@ export function createHermesAdapter(ctx: AdapterContext): Adapter {
     return [{ path: configPath, oldText, newText: doc.toString() }];
   }
 
+  async function groupChange(group: GroupContract): Promise<FileEdit[]> {
+    const oldText = await readOrEmpty(ctx.fs, configPath);
+    const doc = oldText.trim() === "" ? new Document({}) : parseDocument(oldText);
+    doc.setIn(["model", "default"], group.model);
+    doc.setIn(["model", "provider"], group.provider);
+    doc.setIn(["model", "base_url"], group.baseUrl);
+    return [{ path: configPath, oldText, newText: doc.toString() }];
+  }
+
   return {
     toolId: HERMES_TOOL_ID,
     toolName: "Hermes",
@@ -166,5 +176,7 @@ export function createHermesAdapter(ctx: AdapterContext): Adapter {
     readState,
     readFragment,
     planChange,
+    environmentSupport: { supported: true },
+    groupChange,
   };
 }

@@ -1,76 +1,102 @@
 <script lang="ts">
   import type { Plan, PlanSource } from "@plandeck/core";
-  import { deletePlan, isRuntimeEnvPlan, savePlan } from "../lib/state.svelte";
+  import {
+    deleteEnvironmentPlan,
+    deletePlan,
+    saveEnvironmentPlan,
+    savePlan,
+  } from "../lib/state.svelte";
   import { toast } from "../lib/toast.svelte";
 
   let { plan, onDone }: { plan: Plan | null; onDone: () => void } = $props();
 
+  let id = $state("");
   let name = $state("");
-  let source = $state<PlanSource>("config");
+  let source = $state<PlanSource>("env");
+  let provider = $state("openai-compatible");
   let baseUrl = $state("");
-  let key = $state("");
+  let credential = $state("");
+  let clearCredential = $state(false);
   let models = $state("");
   let note = $state("");
   let busy = $state(false);
   let initialized = false;
-  const readOnly = $derived(plan != null && isRuntimeEnvPlan(plan.id));
+  const legacyReadOnly = $derived(plan != null && plan.source !== "env" && plan.source !== "oauth");
 
   $effect.pre(() => {
     if (initialized) return;
+    id = plan?.id ?? "";
     name = plan?.name ?? "";
-    source = plan?.source ?? "config";
+    source = plan?.source ?? "env";
+    provider = plan?.providerId ?? "openai-compatible";
     baseUrl = plan?.baseUrl ?? "";
-    key = plan?.key ?? "";
     models = plan?.models.join(", ") ?? "";
     note = plan?.note ?? "";
     initialized = true;
   });
 
+  function envId(value: string): string {
+    return value.trim().toUpperCase().replace(/[^A-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
   function optional(value: string): string | undefined {
-    const trimmed = value.trim();
-    return trimmed || undefined;
+    return value.trim() || undefined;
   }
 
   async function save(): Promise<void> {
-    if (readOnly) return;
+    if (legacyReadOnly) return;
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      toast("请输入 Plan 名称", "err");
-      return;
-    }
+    if (!trimmedName) return toast("请输入 Plan 名称", "err");
     busy = true;
     try {
-      await savePlan(
-        {
-          name: trimmedName,
-          source,
-          sourceDetail: plan?.sourceDetail,
-          baseUrl: optional(baseUrl),
-          key: optional(key),
-          models: models.split(/[\n,]/).map((model) => model.trim()).filter(Boolean),
-          note: optional(note),
-        },
-        plan?.id,
-      );
+      const parsedModels = models.split(/[\n,]/).map((model) => model.trim()).filter(Boolean);
+      if (source === "env") {
+        const nextId = envId(id || trimmedName);
+        if (!nextId || !/^[A-Z][A-Z0-9_]*$/.test(nextId)) throw new Error("Plan ID 必须以大写字母开头，只能包含大写字母、数字和下划线");
+        await saveEnvironmentPlan(
+          {
+            id: nextId,
+            name: trimmedName,
+            provider: provider.trim(),
+            baseUrl: baseUrl.trim(),
+            models: parsedModels,
+            credential: optional(credential),
+            clearCredential,
+          },
+          plan?.source === "env" ? plan.id : undefined,
+        );
+      } else {
+        await savePlan(
+          {
+            name: trimmedName,
+            source: "oauth",
+            sourceDetail: plan?.sourceDetail,
+            baseUrl: optional(baseUrl),
+            models: parsedModels,
+            note: optional(note),
+          },
+          plan?.id,
+        );
+      }
       toast(plan ? "Plan 已保存" : "Plan 已创建");
       onDone();
-    } catch (e) {
-      toast(String(e), "err");
+    } catch (error) {
+      toast(String(error), "err");
     } finally {
       busy = false;
     }
   }
 
   async function remove(): Promise<void> {
-    if (readOnly) return;
-    if (!plan || !confirm(`删除 Plan「${plan.name}」？`)) return;
+    if (!plan || legacyReadOnly || !confirm(`删除 Plan「${plan.name}」？`)) return;
     busy = true;
     try {
-      await deletePlan(plan.id);
+      if (plan.source === "env") await deleteEnvironmentPlan(plan.id);
+      else await deletePlan(plan.id);
       toast("Plan 已删除");
       onDone();
-    } catch (e) {
-      toast(String(e), "err");
+    } catch (error) {
+      toast(String(error), "err");
     } finally {
       busy = false;
     }
@@ -80,23 +106,31 @@
 <div id="modalWrap">
   <section id="modal" aria-label={plan ? "编辑 Plan" : "新建 Plan"}>
     <h2>{plan ? "编辑 Plan" : "新建 Plan"}</h2>
-    {#if readOnly}<p class="dim">此 Plan 从当前进程环境自动发现，只读。</p>{/if}
-    <label class="field">名称 <input bind:value={name} disabled={readOnly} /></label>
+    {#if legacyReadOnly}<p class="dim">这是旧 Catalog 明文 Plan，只读。先迁移到环境订阅文件。</p>{/if}
+    <label class="field">名称 <input bind:value={name} disabled={legacyReadOnly} /></label>
     <label class="field">
       来源
-      <select bind:value={source} disabled={readOnly}>
-        <option value="config">config</option>
+      <select bind:value={source} disabled={plan != null || legacyReadOnly}>
+        <option value="env">environment</option>
         <option value="oauth">oauth</option>
       </select>
     </label>
-    <label class="field">base_url <input bind:value={baseUrl} disabled={readOnly} placeholder="https://api.example.com" /></label>
-    <label class="field">key <input bind:value={key} disabled={readOnly} type="password" placeholder="留空表示未设置" /></label>
-    <label class="field">模型清单 <textarea bind:value={models} disabled={readOnly} placeholder="每行或逗号分隔"></textarea></label>
-    <label class="field">备注 <textarea bind:value={note} disabled={readOnly}></textarea></label>
+    {#if source === "env"}
+      <label class="field">ID <input bind:value={id} disabled={plan != null || legacyReadOnly} placeholder="MINIMAX_PRIMARY" /></label>
+      <label class="field">provider <input bind:value={provider} disabled={legacyReadOnly} /></label>
+      <label class="field">base_url <input bind:value={baseUrl} disabled={legacyReadOnly} placeholder="https://api.example.com/v1" /></label>
+      <label class="field">新凭据 <input bind:value={credential} disabled={legacyReadOnly} type="password" placeholder={plan?.hasCredential ? "留空保留现有凭据" : "尚未设置"} /></label>
+      {#if plan?.source === "env"}
+        <p class="dim small">{plan.hasCredential ? `已设置 · 指纹 ${plan.credentialFingerprint ?? "未知"}` : "未设置凭据"}</p>
+        <label class="update-setting"><input type="checkbox" bind:checked={clearCredential} /><span>清除现有凭据</span></label>
+      {/if}
+    {/if}
+    <label class="field">模型清单 <textarea bind:value={models} disabled={legacyReadOnly} placeholder="每行或逗号分隔"></textarea></label>
+    {#if source === "oauth"}<label class="field">备注 <textarea bind:value={note}></textarea></label>{/if}
     <div class="modal-foot">
-      {#if plan && !readOnly}<button class="btn danger" disabled={busy} onclick={remove}>删除</button>{/if}
+      {#if plan && !legacyReadOnly}<button class="btn danger" disabled={busy} onclick={remove}>删除</button>{/if}
       <button class="btn ghost" disabled={busy} onclick={onDone}>取消</button>
-      {#if !readOnly}<button class="btn" disabled={busy} onclick={save}>{busy ? "保存中…" : "保存"}</button>{/if}
+      {#if !legacyReadOnly}<button class="btn" disabled={busy} onclick={save}>{busy ? "保存中…" : "保存"}</button>{/if}
     </div>
   </section>
 </div>

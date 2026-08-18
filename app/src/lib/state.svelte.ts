@@ -9,11 +9,32 @@ import {
   newPlanId,
   removePlan,
   saveCatalog,
+  stripCatalogCredentials,
   upsertPlan,
-  withRuntimeEnvPlans,
+  groupContract,
 } from "@plandeck/core";
-import type { Adapter, Catalog, Plan, ToolState } from "@plandeck/core";
-import { backupFiles, fetchCcSwitchRows, fetchDataDir, fetchEnvPlans, fetchHomeDir, tauriFs, tauriSqlite } from "./tauri-fs";
+import type {
+  Adapter,
+  Catalog,
+  EnvironmentCatalog,
+  EnvironmentCatalogWrite,
+  EnvironmentPlanWrite,
+  Plan,
+  SubscriptionGroup,
+  ToolState,
+} from "@plandeck/core";
+import {
+  backupFiles,
+  fetchCcSwitchRows,
+  fetchDataDir,
+  fetchEnvironmentCatalog,
+  fetchHomeDir,
+  previewEnvironmentMigration,
+  saveEnvironmentCatalog,
+  selectEnvironmentPlan as selectEnvironmentPlanIpc,
+  tauriFs,
+  tauriSqlite,
+} from "./tauri-fs";
 import type { BackupTarget } from "./tauri-fs";
 
 export const appState = $state({
@@ -21,6 +42,7 @@ export const appState = $state({
   homeDir: "",
   dataDir: "",
   catalog: emptyCatalog() as Catalog,
+  environment: { version: "1", plans: [], groups: [], bindings: [], errors: [] } as EnvironmentCatalog,
   tools: [] as ToolState[],
   firstRunGuide: false,
   firstRunPlanCount: 0,
@@ -45,6 +67,7 @@ export function backupTargets(): BackupTarget[] {
 export async function init(): Promise<void> {
   appState.homeDir = await fetchHomeDir();
   appState.dataDir = await fetchDataDir();
+  appState.environment = await fetchEnvironmentCatalog();
 
   const catalogPath = `${appState.dataDir}/catalog.json`;
   storedCatalog = await loadCatalog(catalogPath, tauriFs);
@@ -61,16 +84,40 @@ export async function init(): Promise<void> {
 
 async function useCatalog(catalog: Catalog): Promise<void> {
   const path = `${appState.dataDir}/catalog.json`;
+  const migration = await previewEnvironmentMigration();
+  const hasLegacyCatalogCredential = migration.candidateSources.some((source) => {
+    const candidate = source.split(":")[0] ?? "";
+    return candidate === path || candidate === "catalog.json" || candidate.endsWith("/catalog.json");
+  });
+  if (hasLegacyCatalogCredential) {
+    throw new Error("Catalog 仍有旧凭据；请先运行“迁移旧凭据”，再扫描、导入或编辑 Catalog");
+  }
+  const safeCatalog = stripCatalogCredentials(catalog);
   if (await tauriFs.exists(path)) await backupFiles("catalog", [path]);
-  await saveCatalog(path, catalog, tauriFs);
-  storedCatalog = catalog;
+  await saveCatalog(path, safeCatalog, tauriFs);
+  storedCatalog = safeCatalog;
   await refreshRuntimeCatalog();
   await refresh();
 }
 
 async function refreshRuntimeCatalog(): Promise<void> {
-  const catalog = await withRuntimeEnvPlans(storedCatalog, await fetchEnvPlans());
-  runtimeEnvPlanIds = new Set(catalog.plans.filter((plan) => !storedCatalog.plans.some((stored) => stored.id === plan.id)).map((plan) => plan.id));
+  const environmentPlans: Plan[] = appState.environment.plans.map((plan) => ({
+    id: plan.id,
+    name: plan.name,
+    source: "env",
+    sourceDetail: `subscriptions.env · ${plan.id}`,
+    providerId: plan.provider,
+    baseUrl: plan.baseUrl,
+    models: plan.models,
+    hasCredential: plan.hasCredential,
+    credentialFingerprint: plan.credentialFingerprint,
+  }));
+  const environmentIds = new Set(environmentPlans.map((plan) => plan.id));
+  const catalog = {
+    ...storedCatalog,
+    plans: [...storedCatalog.plans.filter((plan) => !environmentIds.has(plan.id)), ...environmentPlans],
+  };
+  runtimeEnvPlanIds = environmentIds;
   appState.catalog = catalog;
   adapters = createAdapters({ fs: tauriFs, sqlite: tauriSqlite, homeDir: appState.homeDir, catalog });
 }
@@ -110,11 +157,109 @@ export function closeFirstRunGuide(): void {
 }
 
 export async function refresh(): Promise<void> {
-  appState.tools = await Promise.all(adapters.map((a) => a.readState()));
+  appState.environment = await fetchEnvironmentCatalog();
+  await refreshRuntimeCatalog();
+  const states = await Promise.all(adapters.map((a) => a.readState()));
+  appState.tools = states.map((state) => {
+    const adapter = adapterFor(state.toolId);
+    const binding = bindingFor(state.toolId);
+    if (!adapter?.environmentSupport.supported) {
+      return { ...state, bindingStatus: "unsupported-env" as const };
+    }
+    if (!binding) return state;
+    const group = appState.environment.groups.find((item) => item.id === binding.groupId);
+    if (!group || appState.environment.errors.length > 0) {
+      return { ...state, groupId: binding.groupId, bindingStatus: "invalid-group" as const };
+    }
+    const drifted = state.defaultModel !== group.model || normalizeUrl(state.baseUrl) !== normalizeUrl(group.baseUrl);
+    return { ...state, groupId: group.id, bindingStatus: drifted ? "drifted" as const : "bound" as const };
+  });
 }
 
 export function updateTool(state: ToolState): void {
   const i = appState.tools.findIndex((t) => t.toolId === state.toolId);
   if (i >= 0) appState.tools[i] = state;
   else appState.tools = [...appState.tools, state];
+}
+
+function normalizeUrl(value: string | undefined): string {
+  return (value ?? "").trim().replace(/\/+$/, "").toLowerCase();
+}
+
+function environmentWrite(): EnvironmentCatalogWrite {
+  return {
+    version: appState.environment.version,
+    plans: appState.environment.plans.map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      provider: plan.provider,
+      baseUrl: plan.baseUrl,
+      models: plan.models,
+    })),
+    groups: appState.environment.groups,
+    bindings: appState.environment.bindings,
+  };
+}
+
+async function useEnvironment(document: EnvironmentCatalogWrite): Promise<void> {
+  appState.environment = await saveEnvironmentCatalog(document);
+  await refreshRuntimeCatalog();
+}
+
+export function bindingFor(toolId: string) {
+  const id = toolId.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+  return appState.environment.bindings.find((binding) => binding.toolId === id);
+}
+
+export function groupForTool(toolId: string): SubscriptionGroup | undefined {
+  const binding = bindingFor(toolId);
+  return binding
+    ? appState.environment.groups.find((group) => group.id === binding.groupId)
+    : undefined;
+}
+
+export async function saveEnvironmentPlan(plan: EnvironmentPlanWrite, originalId?: string): Promise<void> {
+  const document = environmentWrite();
+  const index = document.plans.findIndex((item) => item.id === originalId);
+  if (index >= 0) document.plans[index] = plan;
+  else document.plans.push(plan);
+  await useEnvironment(document);
+}
+
+export async function deleteEnvironmentPlan(planId: string): Promise<void> {
+  const document = environmentWrite();
+  document.plans = document.plans.filter((plan) => plan.id !== planId);
+  await useEnvironment(document);
+}
+
+export async function saveGroup(group: SubscriptionGroup, originalId?: string): Promise<void> {
+  const document = environmentWrite();
+  const index = document.groups.findIndex((item) => item.id === originalId);
+  if (index >= 0) document.groups[index] = group;
+  else document.groups.push(group);
+  await useEnvironment(document);
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  const document = environmentWrite();
+  document.groups = document.groups.filter((group) => group.id !== groupId);
+  document.bindings = document.bindings.filter((binding) => binding.groupId !== groupId);
+  await useEnvironment(document);
+}
+
+export async function saveToolBinding(toolId: string, groupId: string | null): Promise<void> {
+  const document = environmentWrite();
+  const id = toolId.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+  document.bindings = document.bindings.filter((binding) => binding.toolId !== id);
+  if (groupId) document.bindings.push({ toolId: id, groupId });
+  await useEnvironment(document);
+}
+
+export async function selectEnvironmentPlan(groupId: string, planId: string): Promise<void> {
+  appState.environment = await selectEnvironmentPlanIpc(groupId, planId);
+  await refreshRuntimeCatalog();
+}
+
+export function contractForGroup(group: SubscriptionGroup) {
+  return groupContract(group);
 }

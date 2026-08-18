@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { deriveCascadeRows, deriveDefaultRows, derivePlanRows, maskKey } from "@plandeck/core";
+  import { deriveCascadeRows, deriveDefaultRows, derivePlanRows } from "@plandeck/core";
   import {
     appState,
     closeFirstRunGuide,
@@ -18,9 +18,11 @@
   import ToolDrawer from "./components/ToolDrawer.svelte";
   import PlanEditor from "./components/PlanEditor.svelte";
   import PlanTestModal from "./components/PlanTestModal.svelte";
+  import GroupEditor from "./components/GroupEditor.svelte";
   import UpdateDialog from "./components/UpdateDialog.svelte";
   import { initializeUpdater, updaterState } from "./lib/updater.svelte";
-  import type { Plan } from "@plandeck/core";
+  import type { Plan, SubscriptionGroup } from "@plandeck/core";
+  import { installEnvironmentLoader, migrateLegacyEnvironment, previewEnvironmentMigration } from "./lib/tauri-fs";
 
   const TABS: [string, string][] = [
     ["status", "现状（级联）"],
@@ -36,12 +38,14 @@
   let tab = $state("defaults");
   let drawerToolId = $state<string | null>(null);
   let switchToolId = $state<string | null>(null);
-  let revealedPlanId = $state<string | null>(null);
   let importing = $state(false);
   let scanning = $state(false);
+  let installingLoader = $state(false);
+  let migrating = $state(false);
   let refreshing = $state(false);
   let editingPlan = $state<Plan | null | undefined>(undefined);
   let testingPlan = $state<Plan | null>(null);
+  let editingGroup = $state<SubscriptionGroup | null | undefined>(undefined);
   let updateDialogOpen = $state(false);
   let collapsedCascadeNodes = $state(new Set<string>());
 
@@ -100,6 +104,7 @@
         drawerToolId = null;
         editingPlan = undefined;
         testingPlan = null;
+        editingGroup = undefined;
         updateDialogOpen = false;
       }
     };
@@ -160,6 +165,37 @@
       toast(String(e), "err");
     } finally {
       importing = false;
+    }
+  }
+
+  async function installLoader(): Promise<void> {
+    installingLoader = true;
+    try {
+      const result = await installEnvironmentLoader();
+      toast(`已配置环境变量：${result.installed.length} 个文件；新终端或重启 Tool 后生效`);
+    } catch (error) {
+      toast(String(error), "err");
+    } finally {
+      installingLoader = false;
+    }
+  }
+
+  async function migrateLegacy(): Promise<void> {
+    migrating = true;
+    try {
+      const preview = await previewEnvironmentMigration();
+      if (preview.candidatePlans === 0) {
+        toast("没有发现可迁移的明文凭据");
+        return;
+      }
+      if (!confirm(`将迁移 ${preview.candidatePlans} 个凭据，备份并移除 Catalog/.zshrc 中的旧值。继续？`)) return;
+      const result = await migrateLegacyEnvironment();
+      await refresh();
+      toast(`已迁移 ${result.importedPlans} 个 Plan；已备份 ${result.backups.length} 个文件`);
+    } catch (error) {
+      toast(String(error), "err");
+    } finally {
+      migrating = false;
     }
   }
 </script>
@@ -290,14 +326,21 @@
   </table>
 {:else if tab === "plans"}
   <div class="plan-actions">
-    <span class="dim">Catalog 共 {planRows.length} 个 Plan</span>
+    <span class="dim">环境订阅 {appState.environment.plans.length} 个 Plan · {appState.environment.groups.length} 个 Group</span>
+    <button class="btn ghost mini" disabled={installingLoader} onclick={installLoader}>
+      {installingLoader ? "配置中…" : "配置环境变量"}
+    </button>
+    <button class="btn ghost mini" disabled={migrating} onclick={migrateLegacy}>
+      {migrating ? "迁移中…" : "迁移旧凭据"}
+    </button>
     <button class="btn ghost mini" disabled={scanning} onclick={scan}>
       {scanning ? "扫描中…" : "扫描当前配置"}
     </button>
     <button class="btn mini" disabled={importing} onclick={importHistory}>
       {importing ? "导入中…" : "导入 ccSwitch"}
     </button>
-    <button class="btn mini" onclick={() => (editingPlan = null)}>＋ 新建 Plan</button>
+    <button class="btn mini" onclick={() => (editingGroup = null)}>新建 Group</button>
+    <button class="btn mini" onclick={() => (editingPlan = null)}>新建 Plan</button>
   </div>
   <table class="c-table">
     <thead>
@@ -314,19 +357,20 @@
          <tr data-plan={row.plan.id} onclick={() => (editingPlan = row.plan)}>
            <td>
              <b>{row.plan.name}</b>{#if row.plan.note}<div class="small dim">{row.plan.note}</div>{/if}
-             {#if row.plan.baseUrl && row.plan.key && row.plan.models.length}
+             {#if row.plan.source === "env" && row.plan.hasCredential && row.plan.baseUrl && row.plan.models.length}
                <button class="key-toggle plan-test-button" onclick={(event) => { event.stopPropagation(); testingPlan = row.plan; }}>测试可用性</button>
              {/if}
            </td>
           <td><span class="badge b-dim">{row.plan.source}</span><div class="small dim source-detail">{row.plan.sourceDetail ?? "—"}</div></td>
           <td class="mono">
-            {#if row.plan.key}
-              {revealedPlanId === row.plan.id ? row.plan.key : maskKey(row.plan.key)}
-              <button class="key-toggle" onclick={(event) => { event.stopPropagation(); revealedPlanId = revealedPlanId === row.plan.id ? null : row.plan.id; }}>
-                {revealedPlanId === row.plan.id ? "隐藏" : "显示"}
-              </button>
+            {#if row.plan.hasCredential}
+              已设置{#if row.plan.credentialFingerprint} · {row.plan.credentialFingerprint}{/if}
+            {:else if row.plan.source === "oauth"}
+              OAuth
+            {:else if row.plan.source === "env"}
+              未设置
             {:else}
-              —
+              旧 Catalog（待迁移）
             {/if}
           </td>
           <td>{row.plan.models.length ? row.plan.models.join(", ") : "—"}</td>
@@ -337,6 +381,28 @@
       {/each}
     </tbody>
   </table>
+  <section class="group-section" aria-label="订阅 Group">
+    <h2>Subscription Groups</h2>
+    {#if appState.environment.errors.length}
+      <div class="update-error">{appState.environment.errors.join("；")}</div>
+    {/if}
+    <table class="c-table">
+      <thead><tr><th>Group</th><th>契约</th><th>成员</th><th>当前选择</th><th>Tool</th></tr></thead>
+      <tbody>
+        {#each appState.environment.groups as group (group.id)}
+          <tr onclick={() => (editingGroup = group)}>
+            <td><b>{group.id}</b></td>
+            <td><span class="mono">{group.provider}</span><div class="small dim">{group.baseUrl} · {group.model}</div></td>
+            <td>{group.members.join(", ") || "—"}</td>
+            <td>{group.selected || "—"}</td>
+            <td>{appState.environment.bindings.filter((binding) => binding.groupId === group.id).map((binding) => binding.toolId).join(", ") || "—"}</td>
+          </tr>
+        {:else}
+          <tr><td colspan="5" class="dim">尚未创建 Group。</td></tr>
+        {/each}
+      </tbody>
+    </table>
+  </section>
 {/if}
 
 {#if appState.ready && appState.firstRunGuide}
@@ -377,6 +443,9 @@
 {/if}
 {#if testingPlan}
   <PlanTestModal plan={testingPlan} onDone={() => (testingPlan = null)} />
+{/if}
+{#if editingGroup !== undefined}
+  <GroupEditor group={editingGroup} onDone={() => (editingGroup = undefined)} />
 {/if}
 {#if updateDialogOpen}
   <UpdateDialog onDone={() => (updateDialogOpen = false)} />

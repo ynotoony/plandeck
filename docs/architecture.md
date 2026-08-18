@@ -8,7 +8,7 @@ PlanDeck is a local Tauri desktop application with a Svelte frontend, a Rust run
 
 `core/src/` contains domain types, Catalog operations, recognition, adapters, switch planning, backups-related view data, and pure view derivation.
 
-Each Tool adapter translates between a Tool's configuration files and a shared `ToolState`. It also produces file edits for a requested Plan/model switch.
+Each Tool adapter translates between a Tool's configuration files and a shared `ToolState`. Environment-capable adapters also project a `GroupContract` containing a stable credential variable name; they never receive the credential itself.
 
 ### Frontend
 
@@ -31,13 +31,13 @@ The frontend calls the Rust runtime through Tauri commands exposed in `app/src/l
 ## Data Flow
 
 1. The Rust runtime resolves the home and app data directories.
-2. The frontend loads the local Catalog and environment Plans.
+2. The frontend loads `~/.config/ai-subscriptions/subscriptions.env` through the Rust `EnvironmentStore`; only credential presence and fingerprints cross IPC.
 3. Tool adapters read configuration fragments and project/session data.
 4. Core recognition derives status and Plan association.
-5. A confirmed switch creates a backup, applies atomic file edits, and re-reads state.
+5. A confirmed Group binding creates a backup, applies atomic environment-reference edits, and re-reads state. A bound Tool switch only updates Group `SELECTED` in the env file.
 
-PlanDeck does not have a cloud backend. The local configuration files remain the source of truth; the Catalog stores candidate Plans and recognition metadata.
+PlanDeck does not have a cloud backend. The env file is the source of truth for API credentials and Group selection; Tool configuration is a projection and running processes may lag until reload/restart. The Catalog stores only OAuth/non-credential metadata.
 
 ## Security Boundaries
 
-The Tauri command layer is the authority for filesystem and SQLite access. Capabilities should remain minimal. Catalog and backup manifests may contain credentials and must not be logged or committed.
+The Tauri command layer is the authority for filesystem, SQLite, and env-store access. Capabilities should remain minimal. Credentials never return through IPC; env files are `0700`/`0600`, writes are backed up and atomic, and loader files contain no secrets.

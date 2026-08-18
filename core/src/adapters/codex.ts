@@ -4,6 +4,7 @@ import type {
   AdapterContext,
   ConfigFragment,
   FileEdit,
+  GroupContract,
   Plan,
   ProjectState,
   SessionState,
@@ -123,6 +124,21 @@ export function createCodexAdapter(ctx: AdapterContext): Adapter {
     return [{ path: configPath, oldText, newText }];
   }
 
+  async function groupChange(group: GroupContract): Promise<FileEdit[]> {
+    const providerId = `plandeck-${slug(group.id)}`;
+    const oldText = await readOrEmpty(ctx.fs, configPath);
+    let newText = tomlSetTop(oldText, "model", group.model);
+    newText = tomlSetTop(newText, "model_provider", providerId);
+    newText = tomlEnsureProvider(
+      newText,
+      providerId,
+      `PlanDeck ${group.id}`,
+      group.baseUrl,
+      group.credentialEnvVar,
+    );
+    return [{ path: configPath, oldText, newText }];
+  }
+
   return {
     toolId: CODEX_TOOL_ID,
     toolName: "Codex",
@@ -130,6 +146,8 @@ export function createCodexAdapter(ctx: AdapterContext): Adapter {
     readState,
     readFragment,
     planChange,
+    environmentSupport: { supported: true },
+    groupChange,
   };
 }
 
@@ -163,6 +181,7 @@ function tomlEnsureProvider(
   providerId: string,
   name: string,
   baseUrl: string,
+  envKey?: string,
 ): string {
   const lines = text.split("\n");
   const headerRe = new RegExp(
@@ -177,9 +196,26 @@ function tomlEnsureProvider(
       out +
       `[model_providers.${providerId}]\n` +
       `name = ${tomlString(name)}\n` +
-      `base_url = ${tomlString(baseUrl)}\n`
+      `base_url = ${tomlString(baseUrl)}\n` +
+      (envKey ? `env_key = ${tomlString(envKey)}\n` : "")
     );
   }
+  let result = setProviderField(lines.join("\n"), providerId, "base_url", baseUrl);
+  if (envKey) result = setProviderField(result, providerId, "env_key", envKey);
+  return result;
+}
+
+function setProviderField(
+  text: string,
+  providerId: string,
+  key: string,
+  value: string,
+): string {
+  const lines = text.split("\n");
+  const headerRe = new RegExp(
+    `^\\s*\\[\\s*model_providers\\s*\\.\\s*${escapeRe(providerId)}\\s*\\]\\s*$`,
+  );
+  const start = lines.findIndex((line) => headerRe.test(line));
   let end = lines.length;
   for (let i = start + 1; i < lines.length; i++) {
     if (/^\s*\[/.test(lines[i]!)) {
@@ -188,13 +224,13 @@ function tomlEnsureProvider(
     }
   }
   for (let i = start + 1; i < end; i++) {
-    if (/^\s*base_url\s*=/.test(lines[i]!)) {
-      lines[i] = `base_url = ${tomlString(baseUrl)}`;
+    if (new RegExp(`^\\s*${escapeRe(key)}\\s*=`).test(lines[i]!)) {
+      lines[i] = `${key} = ${tomlString(value)}`;
       return lines.join("\n");
     }
   }
   let insertAt = end;
   while (insertAt > start + 1 && lines[insertAt - 1]!.trim() === "") insertAt--;
-  lines.splice(insertAt, 0, `base_url = ${tomlString(baseUrl)}`);
+  lines.splice(insertAt, 0, `${key} = ${tomlString(value)}`);
   return lines.join("\n");
 }
