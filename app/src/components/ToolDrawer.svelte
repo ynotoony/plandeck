@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EnvironmentBindingStatus } from "@plandeck/core";
-  import { adapterFor, appState, groupForTool, saveToolBinding, toolName } from "../lib/state.svelte";
+  import { adapterFor, appState, clearToolBindingPending, groupForTool, refresh, saveToolBinding, toolName } from "../lib/state.svelte";
   import { openInEditor } from "../lib/tauri-fs";
   import { toast } from "../lib/toast.svelte";
   import StatusBadge from "./StatusBadge.svelte";
@@ -43,6 +43,12 @@
     }
   }
 
+  async function recheckBinding(): Promise<void> {
+    clearToolBindingPending(toolId);
+    await refresh();
+    toast("已重新检查 Tool 配置");
+  }
+
   function bindingLabel(status: EnvironmentBindingStatus | undefined): string {
     return ({
       bound: "已绑定",
@@ -76,6 +82,9 @@
       {#if adapter?.environmentSupport.supported}
         <button class="btn" onclick={onSwitch}>{group ? "切换账号" : "绑定 Group"}</button>
         {#if group}<button class="btn ghost" onclick={unbind}>解除绑定</button>{/if}
+        {#if tool.bindingStatus === "needs-reload" || tool.bindingStatus === "needs-restart"}
+          <button class="btn ghost" onclick={recheckBinding}>重新检查</button>
+        {/if}
       {/if}
       <button class="btn ghost" class:active={showHistory} onclick={() => (showHistory = !showHistory)}>历史版本</button>
       <button class="btn ghost" onclick={openConfig}>编辑</button>

@@ -291,8 +291,8 @@ try {
   check("Plan 显示名 = Alibaba Token Plan", rowText.includes("Alibaba Token Plan"));
   await page.waitForFunction(() => true);
   check(
-    "托盘菜单收到 5 个 Tool 的默认模型视图",
-    backend.trayTools().length === 5 &&
+    "托盘菜单收到 7 个 Tool 的默认模型视图",
+    backend.trayTools().length === 7 &&
       backend.trayTools().some((tool) =>
         tool.label.includes("Hermes · qwen3.8-max（已识别）"),
       ),

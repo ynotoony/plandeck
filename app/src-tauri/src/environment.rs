@@ -658,6 +658,8 @@ done"#,
             self.home_dir.join(".config/opencode/opencode.jsonc"),
             self.home_dir.join(".claude/settings.json"),
             self.home_dir.join(".hermes/config.yaml"),
+            self.home_dir.join(".zcode/v2/config.json"),
+            self.home_dir.join(".kimi/config.toml"),
         ];
         let agents = self.home_dir.join("Library/LaunchAgents");
         if agents.exists() {

@@ -414,7 +414,7 @@
       <div class="first-run-actions">
         <button class="first-run-action" disabled={scanning} onclick={scan}>
           <b>{scanning ? "扫描中…" : "重新扫描当前配置"}</b>
-          <span>可随时重新识别 Hermes、opencode、OpenClaw、Codex、Claude Code</span>
+          <span>可随时重新识别 Hermes、opencode、OpenClaw、Codex、Claude Code、ZCode、Kimi Code</span>
         </button>
         <button class="first-run-action" disabled={importing} onclick={importHistory}>
           <b>{importing ? "导入中…" : "导入 ccSwitch"}</b>

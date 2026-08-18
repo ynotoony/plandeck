@@ -90,7 +90,7 @@ describe("五个 Adapter 的 project/session 只读层", () => {
 
   it("所有 project/session 数据源缺失时优雅返回空数组", async () => {
     const states = await readAll(makeTempHome());
-    expect(states.map((state) => state.projects)).toEqual([[], [], [], [], []]);
+    expect(states.map((state) => state.projects)).toEqual([[], [], [], [], [], [], []]);
   });
 });
 
@@ -131,7 +131,7 @@ describe("现状（级联）视图推导", () => {
       },
     ]);
 
-    expect(rows.filter((row) => row.level === 0)).toHaveLength(5);
+    expect(rows.filter((row) => row.level === 0)).toHaveLength(7);
     expect(rows.some((row) => row.level === 2 && row.status === "unknown")).toBe(true);
     expect(deriveCascadeRows([], catalog)).toEqual([]);
   });

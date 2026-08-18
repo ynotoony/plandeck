@@ -53,6 +53,43 @@ export const appState = $state({
 let adapters: Adapter[] = [];
 let storedCatalog = emptyCatalog() as Catalog;
 let runtimeEnvPlanIds = new Set<string>();
+const PENDING_STATUS_KEY = "plandeck.environment.pending-status.v1";
+let pendingBindingStatuses = loadPendingBindingStatuses();
+
+function loadPendingBindingStatuses(): Record<string, "needs-reload" | "needs-restart"> {
+  if (typeof localStorage === "undefined") return {};
+  try {
+    const value = JSON.parse(localStorage.getItem(PENDING_STATUS_KEY) ?? "{}");
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter((entry): entry is [string, "needs-reload" | "needs-restart"] =>
+        entry[1] === "needs-reload" || entry[1] === "needs-restart",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function persistPendingBindingStatuses(): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(PENDING_STATUS_KEY, JSON.stringify(pendingBindingStatuses));
+}
+
+export function markToolBindingPending(
+  toolId: string,
+  status: "needs-reload" | "needs-restart",
+): void {
+  pendingBindingStatuses[toolId] = status;
+  persistPendingBindingStatuses();
+  const current = appState.tools.find((tool) => tool.toolId === toolId);
+  if (current) updateTool({ ...current, bindingStatus: status });
+}
+
+export function clearToolBindingPending(toolId: string): void {
+  delete pendingBindingStatuses[toolId];
+  persistPendingBindingStatuses();
+}
 
 export function adapterFor(toolId: string): Adapter | undefined {
   return adapters.find((a) => a.toolId === toolId);
@@ -176,13 +213,21 @@ export async function refresh(): Promise<void> {
     if (!adapter?.environmentSupport.supported) {
       return { ...state, bindingStatus: "unsupported-env" as const };
     }
-    if (!binding) return state;
+    if (!binding) {
+      clearToolBindingPending(state.toolId);
+      return state;
+    }
     const group = appState.environment.groups.find((item) => item.id === binding.groupId);
     if (!group || appState.environment.errors.length > 0) {
       return { ...state, groupId: binding.groupId, bindingStatus: "invalid-group" as const };
     }
     const drifted = state.defaultModel !== group.model || normalizeUrl(state.baseUrl) !== normalizeUrl(group.baseUrl);
-    return { ...state, groupId: group.id, bindingStatus: drifted ? "drifted" as const : "bound" as const };
+    const pending = pendingBindingStatuses[state.toolId];
+    return {
+      ...state,
+      groupId: group.id,
+      bindingStatus: drifted ? "drifted" as const : pending ?? "bound" as const,
+    };
   });
 }
 
@@ -301,8 +346,7 @@ export async function saveGroup(
   await refresh();
   const affectedToolIds = toolChanges.map((change) => change.toolId);
   for (const toolId of affectedToolIds) {
-    const current = appState.tools.find((tool) => tool.toolId === toolId);
-    if (current) updateTool({ ...current, bindingStatus: "needs-restart" });
+    markToolBindingPending(toolId, "needs-restart");
   }
   return { affectedToolIds, backups };
 }
@@ -320,11 +364,17 @@ export async function saveToolBinding(toolId: string, groupId: string | null): P
   document.bindings = document.bindings.filter((binding) => binding.toolId !== id);
   if (groupId) document.bindings.push({ toolId: id, groupId });
   await useEnvironment(document);
+  if (groupId) markToolBindingPending(toolId, "needs-restart");
+  else clearToolBindingPending(toolId);
 }
 
 export async function selectEnvironmentPlan(groupId: string, planId: string): Promise<void> {
   appState.environment = await selectEnvironmentPlanIpc(groupId, planId);
   await refreshRuntimeCatalog();
+  for (const binding of appState.environment.bindings.filter((item) => item.groupId === groupId)) {
+    const adapter = adapterForBinding(binding.toolId);
+    if (adapter) markToolBindingPending(adapter.toolId, "needs-restart");
+  }
 }
 
 export function contractForGroup(group: SubscriptionGroup) {
