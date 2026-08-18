@@ -49,10 +49,10 @@ On an Apple Silicon Mac with full Xcode installed:
 ```bash
 cd app
 npm ci
-npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
+npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
 ```
 
-The DMG is under `app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/`. With updater signing configured, Tauri also creates a signed `.app.tar.gz` archive and adjacent `.sig` file under the bundle directory.
+The DMG is under `app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/`. The `app` target is required for updater packaging; with updater signing configured, Tauri creates a signed `.app.tar.gz` archive and adjacent `.sig` file under the bundle directory.
 
 ## Checksums
 
