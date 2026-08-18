@@ -338,6 +338,27 @@ try {
     backend.environmentSaveCalls().at(-1)?.bindings?.some((binding) => binding.toolId === "CODEX" && binding.groupId === "DEFAULT"),
   );
 
+  await page.getByRole("button", { name: "Plan 清单" }).click();
+  await groupRow.click();
+  const boundGroupEditor = page.getByRole("region", { name: "编辑 Group" });
+  await boundGroupEditor.getByLabel("固定模型", { exact: true }).fill("qwen3.8-fast");
+  const reconfigureDiff = boundGroupEditor.locator(".diff");
+  await reconfigureDiff.waitFor();
+  check(
+    "已绑定 Group 改契约时预览 Tool 配置 diff",
+    (await reconfigureDiff.innerText()).includes("qwen3.8-fast"),
+  );
+  await boundGroupEditor.getByRole("button", { name: "保存" }).click();
+  await page.locator("#toast:not([hidden])").filter({ hasText: "需重启 Codex" }).waitFor();
+  const codexConfigAfterReconfigure = readFileSync(codexConfigPath, "utf8");
+  check(
+    "Group 重新配置同步写入绑定 Tool 且不写明文凭据",
+    codexConfigAfterReconfigure.includes('model = "qwen3.8-fast"') &&
+      !codexConfigAfterReconfigure.includes("minimax-e2e-key") &&
+      existsSync(join(DATA_DIR, "backups")),
+  );
+  await page.getByRole("button", { name: "默认模型" }).click();
+
   const selectedBefore = backend.environmentSelectCalls().length;
   await codexRow.click();
   await codexDrawer.getByRole("button", { name: "切换账号" }).click();
@@ -352,7 +373,7 @@ try {
     backend.environmentSelectCalls().length === selectedBefore + 1 &&
       backend.environmentSelectCalls().at(-1)?.groupId === "DEFAULT" &&
       backend.environmentSelectCalls().at(-1)?.planId === "MINIMAX_BACKUP" &&
-      codexAfterSelect === codexConfig,
+      codexAfterSelect === codexConfigAfterReconfigure,
   );
   await codexRow.click();
   check("切换后抽屉状态标记为需要重启", (await codexDrawer.innerText()).includes("需要重启 Tool"));

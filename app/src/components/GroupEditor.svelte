@@ -1,7 +1,8 @@
 <script lang="ts">
-  import type { SubscriptionGroup } from "@plandeck/core";
-  import { appState, deleteGroup, saveGroup } from "../lib/state.svelte";
+  import type { FileEdit, SubscriptionGroup } from "@plandeck/core";
+  import { appState, deleteGroup, previewGroupReconfiguration, saveGroup, toolName } from "../lib/state.svelte";
   import { toast } from "../lib/toast.svelte";
+  import DiffView from "./DiffView.svelte";
 
   let { group, onDone }: { group: SubscriptionGroup | null; onDone: () => void } = $props();
 
@@ -12,6 +13,10 @@
   let members = $state<string[]>([]);
   let selected = $state("");
   let busy = $state(false);
+  let previewEdits = $state<FileEdit[] | null>([]);
+  let previewTools = $state<string[]>([]);
+  let previewError = $state("");
+  let previewVersion = 0;
   let initialized = false;
 
   $effect.pre(() => {
@@ -23,6 +28,30 @@
     members = group?.members.slice() ?? [];
     selected = group?.selected ?? "";
     initialized = true;
+  });
+
+  $effect(() => {
+    const draft: SubscriptionGroup = {
+      id: normalizedId(id),
+      provider: provider.trim(),
+      baseUrl: baseUrl.trim(),
+      model: model.trim(),
+      members: members.slice(),
+      selected,
+    };
+    const version = ++previewVersion;
+    previewEdits = null;
+    previewTools = [];
+    previewError = "";
+    previewGroupReconfiguration(draft, group?.id)
+      .then((changes) => {
+        if (version !== previewVersion) return;
+        previewEdits = changes.flatMap((change) => change.edits);
+        previewTools = changes.map((change) => toolName(change.toolId));
+      })
+      .catch((error: unknown) => {
+        if (version === previewVersion) previewError = String(error);
+      });
   });
 
   function normalizedId(value: string): string {
@@ -45,7 +74,7 @@
     if (!nextId) return toast("请输入 Group ID", "err");
     busy = true;
     try {
-      await saveGroup(
+      const result = await saveGroup(
         {
           id: nextId,
           provider: provider.trim(),
@@ -56,7 +85,10 @@
         },
         group?.id,
       );
-      toast(group ? "Group 已保存" : "Group 已创建");
+      const restart = result.affectedToolIds.length
+        ? `；需重启 ${result.affectedToolIds.map(toolName).join("、")}`
+        : "";
+      toast(`${group ? "Group 已保存" : "Group 已创建"}${restart}`);
       onDone();
     } catch (error) {
       toast(String(error), "err");
@@ -105,10 +137,18 @@
         {#each members as member}<option value={member}>{member}</option>{/each}
       </select>
     </label>
+    {#if previewError}
+      <div class="update-error">{previewError}</div>
+    {:else if previewEdits == null}
+      <div class="dim">生成 Tool 配置 diff 中…</div>
+    {:else if previewEdits.length > 0}
+      <div class="step">将同步 {previewTools.join("、")}（写入前自动备份）</div>
+      <DiffView edits={previewEdits} />
+    {/if}
     <div class="modal-foot">
       {#if group}<button class="btn danger" disabled={busy} onclick={remove}>删除</button>{/if}
       <button class="btn ghost" disabled={busy} onclick={onDone}>取消</button>
-      <button class="btn" disabled={busy} onclick={save}>{busy ? "保存中…" : "保存"}</button>
+      <button class="btn" disabled={busy || previewEdits == null || previewError !== ""} onclick={save}>{busy ? "保存中…" : "保存"}</button>
     </div>
   </section>
 </div>

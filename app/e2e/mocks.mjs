@@ -50,13 +50,13 @@ export function createMockBackend({
             name: "MiniMax Primary",
             provider: "openai-compatible",
             baseUrl: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-            models: ["qwen3.8-max"],
+            models: ["qwen3.8-max", "qwen3.8-fast"],
           },
           MINIMAX_BACKUP: {
             name: "MiniMax Backup",
             provider: "openai-compatible",
             baseUrl: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-            models: ["qwen3.8-max"],
+            models: ["qwen3.8-max", "qwen3.8-fast"],
           },
         }[id] ?? { name: id, provider: "", baseUrl: "", models: [] };
         return {

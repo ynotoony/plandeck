@@ -1,5 +1,6 @@
 import {
   bootstrapCatalog,
+  applyFileEdits,
   createAdapters,
   emptyCatalog,
   importCcSwitchCatalog,
@@ -21,6 +22,7 @@ import type {
   EnvironmentPlanWrite,
   Plan,
   SubscriptionGroup,
+  FileEdit,
   ToolState,
 } from "@plandeck/core";
 import {
@@ -54,6 +56,14 @@ let runtimeEnvPlanIds = new Set<string>();
 
 export function adapterFor(toolId: string): Adapter | undefined {
   return adapters.find((a) => a.toolId === toolId);
+}
+
+function normalizedToolId(toolId: string): string {
+  return toolId.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+}
+
+function adapterForBinding(toolId: string): Adapter | undefined {
+  return adapters.find((adapter) => normalizedToolId(adapter.toolId) === toolId);
 }
 
 export function toolName(toolId: string): string {
@@ -207,7 +217,7 @@ async function useEnvironment(document: EnvironmentCatalogWrite): Promise<void> 
 }
 
 export function bindingFor(toolId: string) {
-  const id = toolId.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+  const id = normalizedToolId(toolId);
   return appState.environment.bindings.find((binding) => binding.toolId === id);
 }
 
@@ -232,12 +242,69 @@ export async function deleteEnvironmentPlan(planId: string): Promise<void> {
   await useEnvironment(document);
 }
 
-export async function saveGroup(group: SubscriptionGroup, originalId?: string): Promise<void> {
+export interface GroupToolEdits {
+  toolId: string;
+  edits: FileEdit[];
+}
+
+export async function previewGroupReconfiguration(
+  group: SubscriptionGroup,
+  originalId?: string,
+): Promise<GroupToolEdits[]> {
+  if (!originalId) return [];
+  const original = appState.environment.groups.find((item) => item.id === originalId);
+  if (!original) return [];
+  const contractChanged =
+    original.provider !== group.provider ||
+    normalizeUrl(original.baseUrl) !== normalizeUrl(group.baseUrl) ||
+    original.model !== group.model;
+  if (!contractChanged) return [];
+
+  const changes: GroupToolEdits[] = [];
+  for (const binding of appState.environment.bindings.filter((item) => item.groupId === originalId)) {
+    const adapter = adapterForBinding(binding.toolId);
+    if (!adapter?.environmentSupport.supported || !adapter.groupChange) {
+      throw new Error(`${binding.toolId} 不支持环境 Group，无法同步重新配置`);
+    }
+    const edits = (await adapter.groupChange(contractForGroup(group))).filter(
+      (edit) => edit.oldText !== edit.newText,
+    );
+    if (edits.length > 0) changes.push({ toolId: adapter.toolId, edits });
+  }
+  return changes;
+}
+
+export async function saveGroup(
+  group: SubscriptionGroup,
+  originalId?: string,
+): Promise<{ affectedToolIds: string[]; backups: string[] }> {
+  const toolChanges = await previewGroupReconfiguration(group, originalId);
+  const backups: string[] = [];
+  for (const change of toolChanges) {
+    const existing: string[] = [];
+    for (const edit of change.edits) {
+      if (await tauriFs.exists(edit.path)) existing.push(edit.path);
+    }
+    if (existing.length > 0) backups.push(...await backupFiles(change.toolId, existing));
+  }
   const document = environmentWrite();
   const index = document.groups.findIndex((item) => item.id === originalId);
   if (index >= 0) document.groups[index] = group;
   else document.groups.push(group);
   await useEnvironment(document);
+  try {
+    await applyFileEdits(toolChanges.flatMap((change) => change.edits), tauriFs);
+  } catch (error) {
+    await refresh().catch(() => {});
+    throw new Error(`Group 已保存，但 Tool 配置同步失败；可根据备份恢复后重试：${error}`);
+  }
+  await refresh();
+  const affectedToolIds = toolChanges.map((change) => change.toolId);
+  for (const toolId of affectedToolIds) {
+    const current = appState.tools.find((tool) => tool.toolId === toolId);
+    if (current) updateTool({ ...current, bindingStatus: "needs-restart" });
+  }
+  return { affectedToolIds, backups };
 }
 
 export async function deleteGroup(groupId: string): Promise<void> {
@@ -249,7 +316,7 @@ export async function deleteGroup(groupId: string): Promise<void> {
 
 export async function saveToolBinding(toolId: string, groupId: string | null): Promise<void> {
   const document = environmentWrite();
-  const id = toolId.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+  const id = normalizedToolId(toolId);
   document.bindings = document.bindings.filter((binding) => binding.toolId !== id);
   if (groupId) document.bindings.push({ toolId: id, groupId });
   await useEnvironment(document);
