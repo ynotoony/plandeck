@@ -32,7 +32,11 @@ pub fn atomic_write(path: &Path, text: &str, mode: Option<u32>) -> Result<(), St
     atomic_write_bytes(path, text.as_bytes(), mode)
 }
 
-fn atomic_write_bytes(path: &Path, bytes: &[u8], mode: Option<u32>) -> Result<(), String> {
+pub(crate) fn atomic_write_bytes(
+    path: &Path,
+    bytes: &[u8],
+    mode: Option<u32>,
+) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("创建目录失败 {}: {e}", parent.display()))?;

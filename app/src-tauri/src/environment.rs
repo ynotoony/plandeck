@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -10,6 +11,14 @@ use crate::fsx;
 const VERSION: &str = "1";
 const SOURCE_START: &str = "# >>> PlanDeck subscriptions >>>";
 const SOURCE_END: &str = "# <<< PlanDeck subscriptions <<<";
+const LEGACY_SHELL_API_KEYS: &[&str] = &["MINIMAX_API_KEY"];
+
+#[derive(Clone, Debug)]
+struct FileSnapshot {
+    path: PathBuf,
+    bytes: Option<Vec<u8>>,
+    mode: Option<u32>,
+}
 
 #[derive(Clone, Debug, Default)]
 struct PlanRecord {
@@ -262,16 +271,11 @@ impl EnvironmentStore {
     pub fn install_loader(&self) -> Result<LoaderInstallResult, String> {
         let directory = self.directory();
         let bin_dir = self.home_dir.join(".local/bin");
-        fs::create_dir_all(&directory)
-            .map_err(|error| format!("创建目录失败 {}: {error}", directory.display()))?;
-        fs::create_dir_all(&bin_dir)
-            .map_err(|error| format!("创建目录失败 {}: {error}", bin_dir.display()))?;
-        set_mode(&directory, 0o700)?;
-
         let load_path = directory.join("load.zsh");
         let run_path = bin_dir.join("ai-env-run");
         let zshenv_path = self.home_dir.join(".zshenv");
         let targets = [&load_path, &run_path, &zshenv_path];
+        let snapshots = snapshot_files(&targets)?;
         let existing: Vec<String> = targets
             .iter()
             .filter(|path| path.exists())
@@ -285,7 +289,31 @@ impl EnvironmentStore {
                 .map(|path| path.to_string_lossy().into_owned())
                 .collect()
         };
+        if let Err(error) = self.install_loader_unchecked() {
+            let restore_errors = restore_snapshots(&snapshots);
+            return Err(rollback_error("安装 loader", error, restore_errors));
+        }
+        Ok(LoaderInstallResult {
+            installed: targets
+                .iter()
+                .map(|path| path.to_string_lossy().into_owned())
+                .collect(),
+            backups,
+        })
+    }
 
+    fn install_loader_unchecked(&self) -> Result<(), String> {
+        let directory = self.directory();
+        let bin_dir = self.home_dir.join(".local/bin");
+        fs::create_dir_all(&directory)
+            .map_err(|error| format!("创建目录失败 {}: {error}", directory.display()))?;
+        fs::create_dir_all(&bin_dir)
+            .map_err(|error| format!("创建目录失败 {}: {error}", bin_dir.display()))?;
+        set_mode(&directory, 0o700)?;
+
+        let load_path = directory.join("load.zsh");
+        let run_path = bin_dir.join("ai-env-run");
+        let zshenv_path = self.home_dir.join(".zshenv");
         fsx::atomic_write(&load_path, LOADER_ZSH, Some(0o600))?;
         fsx::atomic_write(&run_path, ENV_RUN_ZSH, Some(0o700))?;
         let old_zshenv = fs::read_to_string(&zshenv_path).unwrap_or_default();
@@ -302,14 +330,7 @@ impl EnvironmentStore {
             &zshenv_path,
             &format!("{clean}{separator}{block}"),
             Some(0o600),
-        )?;
-        Ok(LoaderInstallResult {
-            installed: targets
-                .iter()
-                .map(|path| path.to_string_lossy().into_owned())
-                .collect(),
-            backups,
-        })
+        )
     }
 
     pub fn migration_preview(&self) -> Result<MigrationPreview, String> {
@@ -338,7 +359,7 @@ impl EnvironmentStore {
         if zshrc.exists() {
             let text = fs::read_to_string(&zshrc).map_err(|error| error.to_string())?;
             for line in text.lines() {
-                if let Some((name, _)) = parse_shell_api_key(line) {
+                if let Some((name, _)) = parse_migratable_shell_api_key(line) {
                     preview.candidate_plans += 1;
                     preview
                         .candidate_sources
@@ -352,6 +373,10 @@ impl EnvironmentStore {
     }
 
     pub fn migrate_legacy(&self) -> Result<MigrationResult, String> {
+        self.migrate_legacy_inner(None)
+    }
+
+    fn migrate_legacy_inner(&self, fail_after: Option<&str>) -> Result<MigrationResult, String> {
         let catalog_path = self.data_dir.join("catalog.json");
         let zshrc_path = self.home_dir.join(".zshrc");
         let env_path = self.path();
@@ -443,7 +468,7 @@ impl EnvironmentStore {
         if let Some(text) = zshrc_text.as_deref() {
             let mut kept = Vec::new();
             for line in text.lines() {
-                if let Some((name, key)) = parse_shell_api_key(line) {
+                if let Some((name, key)) = parse_migratable_shell_api_key(line) {
                     let id = unique_plan_id(&env.plans, name.trim_end_matches("_API_KEY"));
                     env.plans.entry(id.clone()).or_insert_with(|| PlanRecord {
                         name: id.clone(),
@@ -511,8 +536,24 @@ impl EnvironmentStore {
         if imported == 0 && removed_catalog_keys == 0 && removed_shell_assignments == 0 {
             return Ok(MigrationResult::default());
         }
+        let load_path = self.directory().join("load.zsh");
+        let run_path = self.home_dir.join(".local/bin/ai-env-run");
+        let zshenv_path = self.home_dir.join(".zshenv");
+        let changed_paths = [
+            env_path.clone(),
+            load_path.clone(),
+            run_path.clone(),
+            zshenv_path.clone(),
+            catalog_path.clone(),
+            zshrc_path.clone(),
+        ];
+        let snapshots = snapshot_files(&changed_paths.iter().collect::<Vec<_>>())?;
+        let mut backup_candidates = changed_paths.to_vec();
+        backup_candidates.extend(self.migration_safety_paths()?);
+        backup_candidates.sort();
+        backup_candidates.dedup();
         let mut paths = Vec::new();
-        for path in [&catalog_path, &zshrc_path, &env_path] {
+        for path in &backup_candidates {
             if path.exists() {
                 paths.push(path.to_string_lossy().into_owned());
             }
@@ -525,15 +566,20 @@ impl EnvironmentStore {
                 .map(|path| path.to_string_lossy().into_owned())
                 .collect()
         };
-        let original_env = if env_path.exists() {
-            Some(fs::read(&env_path).map_err(|error| error.to_string())?)
-        } else {
-            None
-        };
-        let original_catalog = catalog_text.as_ref().map(|text| text.as_bytes().to_vec());
-        let original_zshrc = zshrc_text.as_ref().map(|text| text.as_bytes().to_vec());
+        let env_text = serialize_environment(&env)?;
+        self.validate_with_zsh(&env_text)?;
         let operation = (|| {
-            self.write_internal(&env)?;
+            fs::create_dir_all(self.directory())
+                .map_err(|error| format!("创建环境订阅目录失败: {error}"))?;
+            set_mode(&self.directory(), 0o700)?;
+            fsx::atomic_write(&env_path, &env_text, Some(0o600))?;
+            if fail_after == Some("env") {
+                return Err("测试注入：env 写入后失败".to_string());
+            }
+            self.install_loader_unchecked()?;
+            if fail_after == Some("loader") {
+                return Err("测试注入：loader 写入后失败".to_string());
+            }
             if let Some(value) = catalog_value {
                 fsx::atomic_write(
                     &catalog_path,
@@ -550,18 +596,88 @@ impl EnvironmentStore {
             Ok::<(), String>(())
         })();
         if let Err(error) = operation {
-            restore_bytes(&env_path, original_env.as_deref())?;
-            restore_bytes(&catalog_path, original_catalog.as_deref())?;
-            restore_bytes(&zshrc_path, original_zshrc.as_deref())?;
-            return Err(format!("迁移失败，已恢复备份: {error}"));
+            let restore_errors = restore_snapshots(&snapshots);
+            return Err(rollback_error("迁移", error, restore_errors));
         }
+        let affected_paths = changed_paths
+            .iter()
+            .filter(|path| path.exists())
+            .map(|path| path.to_string_lossy().into_owned())
+            .collect();
         Ok(MigrationResult {
             imported_plans: imported,
             removed_catalog_keys,
             removed_shell_assignments,
             backups,
-            affected_paths: paths,
+            affected_paths,
         })
+    }
+
+    fn validate_with_zsh(&self, text: &str) -> Result<(), String> {
+        let directory = self.directory();
+        fs::create_dir_all(&directory)
+            .map_err(|error| format!("创建迁移验证目录失败 {}: {error}", directory.display()))?;
+        set_mode(&directory, 0o700)?;
+        let path = directory.join(format!(
+            ".subscriptions.env.validation-{}",
+            std::process::id()
+        ));
+        fsx::atomic_write(&path, text, Some(0o600))?;
+        let output = Command::new("/bin/zsh")
+            .args([
+                "-f",
+                "-c",
+                r#"source "$1" || exit 21
+for selected_name in ${(k)parameters[(I)PLANDECK_GROUP_*_SELECTED]}; do
+  selected="${(P)selected_name}"
+  key_name="PLANDECK_PLAN_${selected}_API_KEY"
+  [[ -n "${(P)key_name}" ]] || exit 22
+done"#,
+                "plandeck-migration-validation",
+            ])
+            .arg(&path)
+            .output();
+        let cleanup_error = fs::remove_file(&path).err();
+        let output = output.map_err(|error| format!("无法运行 /bin/zsh 验证环境文件: {error}"))?;
+        if let Some(error) = cleanup_error {
+            return Err(format!("删除迁移验证文件失败 {}: {error}", path.display()));
+        }
+        if !output.status.success() {
+            return Err(format!(
+                "/bin/zsh 环境验证失败（退出码 {}）",
+                output.status.code().unwrap_or(-1)
+            ));
+        }
+        Ok(())
+    }
+
+    fn migration_safety_paths(&self) -> Result<Vec<PathBuf>, String> {
+        let mut paths = vec![
+            self.home_dir.join(".codex/config.toml"),
+            self.home_dir.join(".config/opencode/opencode.json"),
+            self.home_dir.join(".config/opencode/opencode.jsonc"),
+            self.home_dir.join(".claude/settings.json"),
+            self.home_dir.join(".hermes/config.yaml"),
+        ];
+        let agents = self.home_dir.join("Library/LaunchAgents");
+        if agents.exists() {
+            for entry in fs::read_dir(&agents)
+                .map_err(|error| format!("读取 LaunchAgents 失败 {}: {error}", agents.display()))?
+            {
+                let path = entry.map_err(|error| error.to_string())?.path();
+                let name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default()
+                    .to_ascii_lowercase();
+                if path.extension().and_then(|ext| ext.to_str()) == Some("plist")
+                    && (name.contains("hermes") || name.contains("openclaw"))
+                {
+                    paths.push(path);
+                }
+            }
+        }
+        Ok(paths)
     }
 }
 
@@ -920,6 +1036,11 @@ fn parse_shell_api_key(line: &str) -> Option<(&str, String)> {
     (!value.is_empty()).then_some((name, value))
 }
 
+fn parse_migratable_shell_api_key(line: &str) -> Option<(&str, String)> {
+    let parsed = parse_shell_api_key(line)?;
+    LEGACY_SHELL_API_KEYS.contains(&parsed.0).then_some(parsed)
+}
+
 fn unique_plan_id(plans: &BTreeMap<String, PlanRecord>, raw: &str) -> String {
     let mut base: String = raw
         .chars()
@@ -984,12 +1105,63 @@ fn unique_group_id(groups: &BTreeMap<String, SubscriptionGroup>, raw: &str) -> S
     unreachable!()
 }
 
-fn restore_bytes(path: &Path, bytes: Option<&[u8]>) -> Result<(), String> {
-    match bytes {
-        Some(bytes) => fsx::atomic_write(path, &String::from_utf8_lossy(bytes), Some(0o600)),
-        None if path.exists() => fs::remove_file(path).map_err(|error| error.to_string()),
-        None => Ok(()),
+fn snapshot_files(paths: &[&PathBuf]) -> Result<Vec<FileSnapshot>, String> {
+    paths
+        .iter()
+        .map(|path| {
+            let bytes = path
+                .exists()
+                .then(|| fs::read(path).map_err(|error| error.to_string()))
+                .transpose()?;
+            let mode = path.exists().then(|| file_mode(path)).transpose()?;
+            Ok(FileSnapshot {
+                path: (*path).clone(),
+                bytes,
+                mode,
+            })
+        })
+        .collect()
+}
+
+fn restore_snapshots(snapshots: &[FileSnapshot]) -> Vec<String> {
+    let mut errors = Vec::new();
+    for snapshot in snapshots.iter().rev() {
+        let result = match &snapshot.bytes {
+            Some(bytes) => fsx::atomic_write_bytes(&snapshot.path, bytes, snapshot.mode),
+            None if snapshot.path.exists() => {
+                fs::remove_file(&snapshot.path).map_err(|error| error.to_string())
+            }
+            None => Ok(()),
+        };
+        if let Err(error) = result {
+            errors.push(format!("{}: {error}", snapshot.path.display()));
+        }
     }
+    errors
+}
+
+fn rollback_error(operation: &str, error: String, restore_errors: Vec<String>) -> String {
+    if restore_errors.is_empty() {
+        format!("{operation}失败，已恢复全部文件: {error}")
+    } else {
+        format!(
+            "{operation}失败且回滚不完整: {error}；未恢复路径: {}",
+            restore_errors.join("；")
+        )
+    }
+}
+
+#[cfg(unix)]
+fn file_mode(path: &Path) -> Result<u32, String> {
+    use std::os::unix::fs::PermissionsExt;
+    fs::metadata(path)
+        .map(|metadata| metadata.permissions().mode() & 0o777)
+        .map_err(|error| format!("读取权限失败 {}: {error}", path.display()))
+}
+
+#[cfg(not(unix))]
+fn file_mode(_path: &Path) -> Result<u32, String> {
+    Ok(0o600)
 }
 
 #[cfg(unix)]
@@ -1228,7 +1400,15 @@ mod tests {
         .unwrap();
         fs::write(
             home.join(".zshrc"),
-            "export MINIMAX_API_KEY='shell-fixture-secret'\nexport OTHER=value\n",
+            "export MINIMAX_API_KEY='shell-fixture-secret'\nexport UNRELATED_API_KEY='leave-me-alone'\nexport OTHER=value\n",
+        )
+        .unwrap();
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        fs::write(home.join(".codex/config.toml"), "model = \"legacy\"\n").unwrap();
+        fs::create_dir_all(home.join("Library/LaunchAgents")).unwrap();
+        fs::write(
+            home.join("Library/LaunchAgents/com.example.hermes.plist"),
+            "fixture plist",
         )
         .unwrap();
         let store = EnvironmentStore::new(home.to_str().unwrap(), data.to_str().unwrap());
@@ -1244,10 +1424,54 @@ mod tests {
         assert!(!catalog.contains("catalog-fixture-secret"));
         assert!(!catalog.contains("\"key\""));
         assert!(!zshrc.contains("shell-fixture-secret"));
+        assert!(zshrc.contains("UNRELATED_API_KEY='leave-me-alone'"));
         assert!(zshrc.contains("export OTHER=value"));
         assert!(env.contains("catalog-fixture-secret"));
         assert!(env.contains("shell-fixture-secret"));
+        assert!(home.join(".config/ai-subscriptions/load.zsh").exists());
+        assert!(home.join(".local/bin/ai-env-run").exists());
+        assert!(fs::read_to_string(home.join(".zshenv"))
+            .unwrap()
+            .contains(SOURCE_START));
+        assert!(result
+            .backups
+            .iter()
+            .any(|path| path.ends_with("config.toml")));
+        assert!(result
+            .backups
+            .iter()
+            .any(|path| path.ends_with("com.example.hermes.plist")));
         let view = serde_json::to_string(&store.read().unwrap()).unwrap();
         assert!(!view.contains("fixture-secret"));
+    }
+
+    #[test]
+    fn migration_rolls_back_every_changed_file_after_partial_failure() {
+        let home = test_dir("rollback-home");
+        let data = test_dir("rollback-data");
+        let catalog_path = data.join("catalog.json");
+        let zshrc_path = home.join(".zshrc");
+        let zshenv_path = home.join(".zshenv");
+        let catalog_before = r#"{"version":1,"plans":[{"id":"legacy","name":"Legacy","source":"config","providerId":"openai-compatible","baseUrl":"https://api.example.com/v1","key":"catalog-secret","models":["model-a"]}]}"#;
+        let zshrc_before = "export MINIMAX_API_KEY='shell-secret'\n";
+        let zshenv_before = "export EXISTING=value\n";
+        fs::write(&catalog_path, catalog_before).unwrap();
+        fs::write(&zshrc_path, zshrc_before).unwrap();
+        fs::write(&zshenv_path, zshenv_before).unwrap();
+
+        let store = EnvironmentStore::new(home.to_str().unwrap(), data.to_str().unwrap());
+        let error = store.migrate_legacy_inner(Some("loader")).unwrap_err();
+        assert!(error.contains("已恢复全部文件"));
+        assert_eq!(fs::read_to_string(catalog_path).unwrap(), catalog_before);
+        assert_eq!(fs::read_to_string(zshrc_path).unwrap(), zshrc_before);
+        assert_eq!(fs::read_to_string(zshenv_path).unwrap(), zshenv_before);
+        assert!(!store.path().exists());
+        assert!(!home.join(".config/ai-subscriptions/load.zsh").exists());
+        assert!(!home.join(".local/bin/ai-env-run").exists());
+        assert!(!fs::read_dir(store.directory()).unwrap().any(|entry| entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .contains("validation")));
     }
 }
