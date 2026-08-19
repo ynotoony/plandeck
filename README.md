@@ -12,6 +12,7 @@ PlanDeck gives people who use several AI tools and providers one local view of t
 
 - Shows the Tool -> Project -> Session -> Model cascade.
 - Lists API, environment-variable, and OAuth Plans in one Catalog.
+- Manages credential-backed subscription Plans and account Groups through a dedicated local environment file.
 - Recognizes the current Tool configuration against the Catalog.
 - Switches a Tool's default Plan and model with a preview.
 - Creates a backup before writing configuration files.
@@ -21,7 +22,7 @@ PlanDeck gives people who use several AI tools and providers one local view of t
 - Shows recent GitHub Release notes and installs signed updates, with an optional startup check.
 - Imports compatible provider history from ccSwitch.
 
-The current adapters cover Hermes, opencode, OpenClaw, Codex CLI, and Claude Code.
+The current adapters cover Hermes, opencode, OpenClaw, Codex CLI, Claude Code, ZCode, and Kimi Code. ZCode and Kimi Code are detection-only for environment Groups until their credential contracts are verified.
 
 ## Status And Scope
 
@@ -34,9 +35,10 @@ The first downloadable build is unsigned and unnotarized. macOS may show a Gatek
 PlanDeck is local-first:
 
 - It reads supported AI Tool configuration files from your machine.
-- It writes only when you confirm a Plan switch, restore a backup, or edit a Plan.
+- It writes only when you confirm a Group/Plan change, restore a backup, migrate legacy credentials, or install the environment loader.
 - It does not provide a PlanDeck cloud service or upload your configurations.
-- The Catalog contains Plan metadata and may contain API keys. It is saved under the app data directory with `0600` file permissions on Unix systems.
+- Subscription credentials live in `~/.config/ai-subscriptions/subscriptions.env` with restrictive permissions and are read by the Rust runtime; only presence and fingerprints reach the frontend.
+- The Catalog stores Plan metadata and does not persist API keys.
 - Backups contain copies of configuration files and must be protected like the originals.
 
 Do not commit your runtime Catalog, backups, AI Tool configuration files, or credentials to Git.

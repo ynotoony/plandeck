@@ -12,6 +12,7 @@ PlanDeck 把多个 AI Tool 和供应商配置集中到一个本地界面中，�
 
 - 展示 Tool -> Project -> Session -> Model 级联视图。
 - 统一列出配置文件、环境变量和 OAuth 三类 Plan。
+- 通过独立的本地环境文件管理带凭据的订阅 Plan 和账号 Group。
 - 将 Tool 当前配置与 Catalog 比对，显示识别状态。
 - 预览并切换 Tool 默认 Plan 和模型。
 - 写入配置前自动备份。
@@ -21,7 +22,7 @@ PlanDeck 把多个 AI Tool 和供应商配置集中到一个本地界面中，�
 - 查看最近的 GitHub Release 更新记录并安装经签名验证的更新，可选择启动时自动检查。
 - 导入兼容的 ccSwitch 供应商历史。
 
-当前支持 Hermes、opencode、OpenClaw、Codex CLI 和 Claude Code。
+当前支持 Hermes、opencode、OpenClaw、Codex CLI、Claude Code、ZCode 和 Kimi Code。ZCode 和 Kimi Code 在环境 Group 中暂时只识别不写入，直到其凭据契约完成验证。
 
 ## 当前限制
 
@@ -34,9 +35,10 @@ PlanDeck 把多个 AI Tool 和供应商配置集中到一个本地界面中，�
 PlanDeck 采用本地优先设计：
 
 - 读取本机支持的 AI Tool 配置文件。
-- 只有在确认切换、恢复备份或保存 Plan 时写入文件。
+- 只有在确认 Group/Plan 修改、恢复备份、迁移旧凭据或安装环境 loader 时写入文件。
 - 没有 PlanDeck 云服务，不会上传配置。
-- Catalog 可能包含 API key，Unix 系统下以 `0600` 权限保存到应用数据目录。
+- 订阅凭据保存在 `~/.config/ai-subscriptions/subscriptions.env`，由 Rust 运行时读取并使用限制性权限；前端只接收是否设置和指纹。
+- Catalog 只保存 Plan 元数据，不持久化 API key。
 - 备份是配置文件副本，应按原配置文件同等保护。
 
 不要把运行时 Catalog、备份、AI Tool 配置或凭据提交到 Git。

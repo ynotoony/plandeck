@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.2 Beta
+
+This release moves subscription credentials behind a dedicated local environment boundary and adds account groups for supported Tools.
+
+- Store subscription credentials in `~/.config/ai-subscriptions/subscriptions.env`; expose only credential presence and fingerprints to the frontend.
+- Create Groups with a fixed provider, base URL, and model, then switch the selected member without rewriting Tool configuration.
+- Bind Codex, opencode, Claude Code, and Hermes through stable environment-variable references.
+- Back up and synchronize bound Tool configuration when a Group contract changes.
+- Persist reload/restart status and provide an explicit recheck action.
+- Install an independent shell loader and command wrapper without relying on the PlanDeck process or `launchctl setenv`.
+- Migrate legacy Catalog and shell credentials transactionally, with validation, backups, and full rollback on failure.
+- Remove credentials from the public Plan and Catalog model.
+- Treat Kimi Code and ZCode as read-only detection adapters until their environment credential contracts are verified.
+
 ## 0.1.1 Beta
 
 The first post-Beta update expands Tool compatibility and adds a signed update path.
