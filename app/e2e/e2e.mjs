@@ -224,7 +224,7 @@ try {
     "Tool 收起时隐藏全部 project 与 session",
     (await cascadeProject.count()) === 0 &&
       (await cascadeSession.count()) === 0 &&
-      (await page.locator("tr[data-cascade-level='0']").count()) === 5,
+      (await page.locator("tr[data-cascade-level='0']").count()) === 7,
   );
   await cascadeTool.getByRole("button", { name: "展开 Hermes" }).click();
   check("Tool 重新展开后恢复全部后代", (await cascadeProject.count()) === 1 && (await cascadeSession.count()) === 1);
@@ -384,6 +384,8 @@ try {
 
   check("前端无运行时错误", pageErrors.length === 0, pageErrors.slice(0, 3).join(" ;; "));
 
+  // Reset the migration fixture before exercising a fresh empty Catalog.
+  backend.setMigrationPreview({ candidatePlans: 0, candidateSources: [], warnings: [] });
   writeFileSync(join(DATA_DIR, "catalog.json"), JSON.stringify({ version: 1, plans: [] }));
   backend.setEnvVars({});
   const firstRunPage = await browser.newPage({ viewport: { width: 900, height: 700 } });
