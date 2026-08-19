@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createKimiAdapter } from "../src/adapters/kimi.js";
 import { createZcodeAdapter } from "../src/adapters/zcode.js";
+import { bootstrapCatalog } from "../src/bootstrap.js";
 import { nodeFs } from "../src/node-fs.js";
 import { nodeSqlite } from "../src/node-sqlite.js";
 import type { Catalog } from "../src/types.js";
@@ -36,6 +37,26 @@ describe("unsupported environment adapters", () => {
     expect(adapter.environmentSupport).toMatchObject({ supported: false });
     await expect(adapter.planChange(plan, plan.models[0]!)).rejects.toThrow(/v1 不管理切换/);
     expect(readFileSync(path, "utf8")).toContain("api_key");
+  });
+
+  it("recognizes Kimi OAuth without importing it as a key-based Plan", async () => {
+    const home = makeTempHome();
+    write(
+      home,
+      ".kimi/config.toml",
+      `default_model = "kimi-code/glm"\n\n[providers."managed:kimi-code"]\ntype = "kimi"\nbase_url = "https://api.kimi.com/coding/v1"\napi_key = ""\noauth = { storage = "keyring", key = "oauth/kimi-code" }\n\n[models."kimi-code/glm"]\nprovider = "managed:kimi-code"\nmodel = "glm"\nmax_context_size = 262144\n`,
+    );
+    const adapter = createKimiAdapter(context(home));
+
+    expect(await adapter.readFragment()).toBeNull();
+    expect(await adapter.readState()).toMatchObject({
+      toolId: "kimi",
+      status: "oauth",
+      defaultModel: "glm",
+    });
+    expect((await bootstrapCatalog([adapter])).plans).toEqual([
+      expect.objectContaining({ id: "kimi-oauth", source: "oauth" }),
+    ]);
   });
 
   it("recognizes ZCode without claiming opencode env compatibility", async () => {

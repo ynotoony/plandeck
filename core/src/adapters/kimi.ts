@@ -20,8 +20,10 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     return parse(await ctx.fs.read(configPath)) as TomlRecord;
   }
 
-  async function readFragment(): Promise<ConfigFragment | null> {
-    const doc = await readDoc();
+  function activeConfig(doc: TomlRecord | null): {
+    fragment: ConfigFragment;
+    oauth: boolean;
+  } | null {
     const alias = str(doc?.default_model);
     const selected = alias ? record(record(doc?.models)?.[alias]) : undefined;
     const model = str(selected?.model);
@@ -29,18 +31,37 @@ export function createKimiAdapter(ctx: AdapterContext): Adapter {
     if (!model || !providerId) return null;
     const provider = record(record(doc?.providers)?.[providerId]);
     return {
-      providerId,
-      model,
-      baseUrl: str(selected?.base_url) ?? str(provider?.base_url),
-      key: str(provider?.api_key),
+      fragment: {
+        providerId,
+        model,
+        baseUrl: str(selected?.base_url) ?? str(provider?.base_url),
+        key: str(provider?.api_key),
+      },
+      oauth: record(provider?.oauth) !== undefined,
     };
   }
 
+  async function readFragment(): Promise<ConfigFragment | null> {
+    const active = activeConfig(await readDoc());
+    return active?.oauth ? null : active?.fragment ?? null;
+  }
+
   async function readState(): Promise<ToolState> {
+    const doc = await readDoc();
+    const active = activeConfig(doc);
+    if (active?.oauth) {
+      return {
+        toolId: KIMI_TOOL_ID,
+        status: "oauth",
+        defaultModel: active.fragment.model,
+        baseUrl: active.fragment.baseUrl,
+        projects: [],
+      };
+    }
     return stateFromFragment(
       KIMI_TOOL_ID,
-      await readFragment(),
-      await ctx.fs.exists(configPath),
+      active?.fragment ?? null,
+      doc !== null,
       ctx.catalog,
     );
   }

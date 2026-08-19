@@ -1002,7 +1002,12 @@ fn normalize_url(value: &str) -> String {
 }
 
 fn fingerprint(value: &str) -> String {
-    format!("{:x}", Sha256::digest(value.as_bytes()))[..12].to_string()
+    let mut fingerprint = String::with_capacity(12);
+    for byte in &Sha256::digest(value.as_bytes())[..6] {
+        use std::fmt::Write as _;
+        write!(fingerprint, "{byte:02x}").unwrap();
+    }
+    fingerprint
 }
 
 fn remove_marked_block(text: &str) -> String {
@@ -1305,6 +1310,11 @@ mod tests {
             },
         );
         file
+    }
+
+    #[test]
+    fn fingerprint_is_truncated_lowercase_sha256() {
+        assert_eq!(fingerprint("secret"), "2bb80d537b1d");
     }
 
     #[test]
