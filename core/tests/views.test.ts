@@ -8,7 +8,6 @@ import {
   deriveDefaultRows,
   derivePlanRows,
   deriveTrayMenu,
-  maskKey,
   parseTrayAction,
 } from "../src/views.js";
 import {
@@ -92,45 +91,27 @@ describe("视图推导（纯函数）", () => {
   });
 });
 
-describe("key 打码", () => {
-  it("sk-…abcd 形态：保留前 3 位与末 4 位", () => {
-    expect(maskKey("fixture-credential-alpha-0001")).toBe(
-      "fix…0001",
-    );
-    expect(maskKey(MINIMAX_ENV_KEY)).toBe("sk-…-001");
-  });
-
-  it("短 key（<12 位）整体打码，避免明文几乎全露", () => {
-    expect(maskKey("sk-abcdef")).toBe("…");
-    expect(maskKey("abcdefghijk")).toBe("…");
-    expect(maskKey("abcdefghijkl")).toBe("abc…ijkl");
-  });
-});
-
-describe("Plan 清单展示字段（来源 / 凭证形态 / 打码）", () => {
-  it("config 型：来源标 config + 路径，凭证打码，maskedKey 为 sk-…形态", () => {
+describe("Plan 清单展示字段（来源 / 凭证指纹）", () => {
+  it("config 型：来源标 config + 路径，只显示指纹", () => {
     const row = derivePlanRows(tools, catalog).find(
       (r) => r.plan.id === "alibaba-token-plan",
     )!;
     expect(row.sourceLabel).toBe("config · ~/.hermes/config.yaml");
-    expect(row.credential).toBe("key（打码）");
-    expect(row.maskedKey).toBe("fix…0001");
-    expect(row.plan.key).toBe("fixture-credential-alpha-0001");
+    expect(row.credential).toBe("已设置 · 1132b888218a");
+    expect(row.plan).not.toHaveProperty("key");
   });
 
-  it("oauth 型：来源标 OAuth，凭证为登录会话，无 maskedKey", () => {
+  it("oauth 型：来源标 OAuth，凭证为登录会话", () => {
     const row = derivePlanRows(tools, catalog).find((r) => r.plan.id === "claude-max")!;
     expect(row.sourceLabel).toBe("OAuth");
     expect(row.credential).toBe("登录会话");
-    expect(row.maskedKey).toBeUndefined();
   });
 
-  it("env 型：来源标 env + 变量名，凭证 env（打码）", async () => {
+  it("env 型：来源标 env + 变量名，凭证只显示指纹", async () => {
     const merged = await withEnvPlans(catalog, { [MINIMAX_ENV_VAR]: MINIMAX_ENV_KEY });
     const row = derivePlanRows(tools, merged).find((r) => r.plan.id === "env-minimax")!;
     expect(row.sourceLabel).toBe(`env · ${MINIMAX_ENV_VAR}`);
-    expect(row.credential).toBe("env（打码）");
-    expect(row.maskedKey).toBe(maskKey(MINIMAX_ENV_KEY));
+    expect(row.credential).toBe("已设置 · c74e7eefe77f");
   });
 
   it("无 sourceDetail 时只展示来源类型，不残留分隔符", () => {
@@ -323,7 +304,7 @@ describe("默认模型表（7 个 Adapter 全量集成）", () => {
       ["Claude Max", []],
       ["MINIMAX", []],
     ]);
-    expect(rows[0]!.credential).toBe("key（打码）");
+    expect(rows[0]!.credential).toBe("已设置 · 1132b888218a");
     expect(rows[3]!.sourceLabel).toBe(`env · ${MINIMAX_ENV_VAR}`);
   });
 });

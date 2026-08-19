@@ -109,7 +109,7 @@ export function createClaudeAdapter(ctx: AdapterContext): Adapter {
     const oldText = await readOrEmpty(ctx.fs, configPath);
     let newText = oldText === "" ? "{}\n" : oldText;
     newText = jsonSet(newText, ["env", "ANTHROPIC_BASE_URL"], plan.baseUrl);
-    newText = jsonSet(newText, ["env", "ANTHROPIC_AUTH_TOKEN"], plan.key);
+    newText = jsonSet(newText, ["env", "ANTHROPIC_AUTH_TOKEN"], undefined);
     newText = jsonSet(newText, ["env", "ANTHROPIC_API_KEY"], undefined);
     newText = jsonSet(newText, ["env", "ANTHROPIC_MODEL"], model);
     return [{ path: configPath, oldText, newText }];

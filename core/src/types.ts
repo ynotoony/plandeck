@@ -41,8 +41,6 @@ export interface Plan {
   sourceDetail?: string;
   providerId?: string;
   baseUrl?: string;
-  /** @deprecated Legacy migration/fixture compatibility. Environment Plans never expose this field. */
-  key?: string;
   hasCredential?: boolean;
   credentialFingerprint?: string;
   models: string[];

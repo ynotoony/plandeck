@@ -68,7 +68,7 @@ describe("claude adapter readState（fixture = 本机真实 settings.json 匿名
 });
 
 describe("claude adapter planChange（env 切换）", () => {
-  it("产出预期新内容：写入三个 ANTHROPIC_* env，hooks 等无关字段保留", async () => {
+  it("产出预期新内容：不复制凭据，hooks 等无关字段保留", async () => {
     const { adapter, home } = makeClaude("settings.json", catalog);
     const edits = await adapter.planChange(deepseekPlan, "deepseek-v4-pro");
 
@@ -79,7 +79,7 @@ describe("claude adapter planChange（env 切换）", () => {
 
     const doc = parse(edit.newText) as any;
     expect(doc.env.ANTHROPIC_BASE_URL).toBe("https://api.deepseek.com");
-    expect(doc.env.ANTHROPIC_AUTH_TOKEN).toBe("fixture-credential-beta-0002");
+    expect(doc.env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
     expect(doc.env.ANTHROPIC_MODEL).toBe("deepseek-v4-pro");
     expect(doc.hooks.Stop[0].hooks[0].command).toContain("notify.cjs --source=claude");
   });
@@ -96,7 +96,7 @@ describe("claude adapter planChange（env 切换）", () => {
   it("plan 没有 key 时不写 ANTHROPIC_AUTH_TOKEN", async () => {
     const { adapter } = makeClaude("settings.oauth.json", catalog);
     const edits = await adapter.planChange(
-      { ...deepseekPlan, key: undefined },
+      deepseekPlan,
       "deepseek-v4-pro",
     );
     const doc = parse(edits[0]!.newText) as any;
@@ -107,7 +107,7 @@ describe("claude adapter planChange（env 切换）", () => {
   it("切到没有 key 的 plan 时清掉旧 provider 的 token（不串号）", async () => {
     const { adapter } = makeClaude("settings.json", catalog);
     const edits = await adapter.planChange(
-      { ...deepseekPlan, key: undefined },
+      deepseekPlan,
       "deepseek-v4-pro",
     );
     const doc = parse(edits[0]!.newText) as any;

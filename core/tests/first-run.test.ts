@@ -16,8 +16,6 @@ import {
   OPENCODE_DIR_REL,
 } from "./helpers.js";
 
-const KEY1 = "fixture-credential-alpha-0001";
-
 function adaptersFor(home: string) {
   return createAdapters({ fs: nodeFs, sqlite: nodeSqlite, homeDir: home, catalog: emptyCatalog() });
 }
@@ -33,12 +31,13 @@ describe("isFirstRun（首启判定）", () => {
 });
 
 describe("bootstrapCatalog（首启扫描）", () => {
-  it("opencode 片段里的 apiKey 一并入库", async () => {
+  it("opencode 片段里的 apiKey 只以指纹入库", async () => {
     const home = makeTempHome();
     installToolFixture(home, "opencode", "opencode.with-model.json", join(OPENCODE_DIR_REL, "opencode.json"));
     const catalog = await bootstrapCatalog(adaptersFor(home));
     expect(catalog.plans).toHaveLength(1);
-    expect(catalog.plans[0]!.key).toBe(KEY1);
+    expect(catalog.plans[0]!.credentialFingerprint).toBe("1132b888218a");
+    expect(catalog.plans[0]).not.toHaveProperty("key");
   });
 
   it("只有 Claude OAuth 时也生成 OAuth Plan，不会重复触发首启", async () => {
@@ -68,7 +67,7 @@ describe("firstRunSetup（首启扫描 + ccSwitch 导入）", () => {
 
     const alibaba = result.catalog.plans.filter((p) => p.baseUrl?.includes("token-plan"));
     expect(alibaba).toHaveLength(1);
-    expect(alibaba[0]!.key).toBe(KEY1);
+    expect(alibaba[0]!.credentialFingerprint).toBe("1132b888218a");
     expect(alibaba[0]!.models).toEqual(["qwen3.8-max", "qwen3-max", "qwen-plus"]);
     expect(alibaba[0]!.sourceDetail).toBe(`${home}/.hermes/config.yaml`);
 

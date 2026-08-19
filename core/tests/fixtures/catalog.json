@@ -8,7 +8,8 @@
       "sourceDetail": "~/.hermes/config.yaml",
       "providerId": "alibaba",
       "baseUrl": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-      "key": "fixture-credential-alpha-0001",
+      "hasCredential": true,
+      "credentialFingerprint": "1132b888218a",
       "models": ["qwen3.8-max", "qwen3-max", "qwen-plus"],
       "note": "3 月 15 日续费"
     },
@@ -19,7 +20,8 @@
       "sourceDetail": "custom_providers · ds",
       "providerId": "ds",
       "baseUrl": "https://api.deepseek.com",
-      "key": "fixture-credential-beta-0002",
+      "hasCredential": true,
+      "credentialFingerprint": "ef111d9eab0e",
       "models": ["deepseek-v4-flash", "deepseek-v4-pro"]
     },
     {

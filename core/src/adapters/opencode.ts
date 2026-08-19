@@ -156,9 +156,6 @@ export function createOpencodeAdapter(ctx: AdapterContext): Adapter {
     let newText = oldText === "" ? "{}\n" : oldText;
     newText = jsonSet(newText, ["model"], `${providerId}/${model}`);
     newText = jsonSet(newText, ["provider", providerId, "options", "baseURL"], plan.baseUrl);
-    if (plan.key) {
-      newText = jsonSet(newText, ["provider", providerId, "options", "apiKey"], plan.key);
-    }
     newText = jsonSet(newText, ["provider", providerId, "models", model], {});
     return [{ path, oldText, newText }];
   }

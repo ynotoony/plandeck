@@ -8,7 +8,10 @@ export function emptyCatalog(): Catalog {
 export function stripCatalogCredentials(catalog: Catalog): Catalog {
   return {
     ...catalog,
-    plans: catalog.plans.map(({ key: _key, ...plan }) => plan),
+    plans: catalog.plans.map((plan) => {
+      const { key: _key, ...safe } = plan as Plan & { key?: unknown };
+      return safe;
+    }),
   };
 }
 

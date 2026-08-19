@@ -32,12 +32,6 @@ export interface PlanRow {
   usedBy: string[];
   sourceLabel: string;
   credential: string;
-  maskedKey?: string;
-}
-
-export function maskKey(key: string): string {
-  if (key.length < 12) return "…";
-  return `${key.slice(0, 3)}…${key.slice(-4)}`;
 }
 
 function sourceInfo(plan: Plan): { sourceLabel: string; credential: string } {
@@ -51,11 +45,7 @@ function sourceInfo(plan: Plan): { sourceLabel: string; credential: string } {
       credential: plan.credentialFingerprint ? `已设置 · ${plan.credentialFingerprint}` : "已设置",
     };
   }
-  if (!plan.key) return { sourceLabel, credential: "—" };
-  return {
-    sourceLabel,
-    credential: plan.source === "env" ? "env（打码）" : "key（打码）",
-  };
+  return { sourceLabel, credential: "—" };
 }
 
 export function trayToolLabel(toolName: string, tool: ToolState): string {
@@ -152,7 +142,6 @@ export function derivePlanRows(tools: ToolState[], catalog: Catalog): PlanRow[] 
     plan,
     usedBy: tools.filter((t) => t.plan === plan.id).map((t) => t.toolId),
     ...sourceInfo(plan),
-    maskedKey: plan.key ? maskKey(plan.key) : undefined,
   }));
 }
 

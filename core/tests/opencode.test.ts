@@ -100,7 +100,7 @@ describe("opencode adapter planChange", () => {
     const doc = parse(edit.newText) as any;
     expect(doc.model).toBe("ds/deepseek-v4-pro");
     expect(doc.provider.ds.options.baseURL).toBe("https://api.deepseek.com");
-    expect(doc.provider.ds.options.apiKey).toBe("fixture-credential-beta-0002");
+    expect(doc.provider.ds.options.apiKey).toBeUndefined();
     expect(doc.provider.ds.models["deepseek-v4-pro"]).toEqual({});
 
     expect(edit.newText).toContain("// 本机默认模型");
@@ -125,7 +125,7 @@ describe("opencode adapter planChange", () => {
 
   it("plan 没有 key 时不写 apiKey", async () => {
     const { adapter } = makeOpencode(["opencode.with-model.json"], catalog);
-    const edits = await adapter.planChange({ ...deepseekPlan, key: undefined }, "deepseek-v4-pro");
+    const edits = await adapter.planChange(deepseekPlan, "deepseek-v4-pro");
     const doc = parse(edits[0]!.newText) as any;
     expect(doc.provider.ds.options.baseURL).toBe("https://api.deepseek.com");
     expect("apiKey" in doc.provider.ds.options).toBe(false);

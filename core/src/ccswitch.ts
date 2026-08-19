@@ -131,7 +131,8 @@ async function ccSwitchRowToPlan(
     sourceDetail,
     providerId: extracted.providerId,
     baseUrl: extracted.baseUrl,
-    key: extracted.key,
+    hasCredential: !!extracted.key,
+    credentialFingerprint: extracted.key ? await keyFingerprint(extracted.key) : undefined,
     models: extracted.models,
     note: row.notes || undefined,
   };
@@ -151,7 +152,8 @@ export async function mergeCatalogPlans(catalog: Catalog, incoming: Plan[]): Pro
     const updated: Plan = {
       ...existing,
       models: [...existing.models, ...plan.models.filter((m) => !existing.models.includes(m))],
-      key: existing.key ?? plan.key,
+      hasCredential: existing.hasCredential || plan.hasCredential,
+      credentialFingerprint: existing.credentialFingerprint ?? plan.credentialFingerprint,
       baseUrl: existing.baseUrl ?? plan.baseUrl,
       providerId: existing.providerId ?? plan.providerId,
       note: existing.note ?? plan.note,

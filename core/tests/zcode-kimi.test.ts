@@ -28,7 +28,7 @@ describe("unsupported environment adapters", () => {
     const path = write(
       home,
       ".kimi/config.toml",
-      `default_model = "active"\n[providers.current]\nbase_url = "${plan.baseUrl}"\napi_key = "${plan.key}"\n[models.active]\nprovider = "current"\nmodel = "${plan.models[0]}"\n`,
+      `default_model = "active"\n[providers.current]\nbase_url = "${plan.baseUrl}"\napi_key = "fixture-credential-alpha-0001"\n[models.active]\nprovider = "current"\nmodel = "${plan.models[0]}"\n`,
     );
     const adapter = createKimiAdapter(context(home));
 
@@ -45,7 +45,7 @@ describe("unsupported environment adapters", () => {
       ".zcode/v2/config.json",
       JSON.stringify({
         model: `current/${plan.models[0]}`,
-        provider: { current: { options: { baseURL: plan.baseUrl, apiKey: plan.key } } },
+        provider: { current: { options: { baseURL: plan.baseUrl, apiKey: "fixture-credential-alpha-0001" } } },
       }),
     );
     const adapter = createZcodeAdapter(context(home));

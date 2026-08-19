@@ -13,6 +13,8 @@ import {
 const DB = "~/.cc-switch/cc-switch.db";
 const KEY1 = "fixture-credential-alpha-0001";
 const KEY2 = "fixture-credential-beta-0002";
+const FP1 = "1132b888218a";
+const FP2 = "ef111d9eab0e";
 
 function toRow(id: string, appType: string): CcSwitchRow {
   const row = loadCcSwitchFixtureRows().find((r) => r.id === id && r.app_type === appType);
@@ -50,8 +52,8 @@ describe("importCcSwitchCatalog（SQLite 导入）", () => {
     expect(new Set(result.catalog.plans.map((p) => p.id)).size).toBe(6);
 
     const deepseeks = result.catalog.plans.filter((p) => p.name === "DeepSeek");
-    expect(deepseeks.map((p) => p.key).sort()).toEqual([KEY1, KEY2]);
-    expect(result.catalog.plans.find((p) => p.name === "DeepSeek" && p.key === KEY1)!.note).toBe(
+    expect(deepseeks.map((p) => p.credentialFingerprint).sort()).toEqual([FP1, FP2]);
+    expect(result.catalog.plans.find((p) => p.name === "DeepSeek" && p.credentialFingerprint === FP1)!.note).toBe(
       "公司报销",
     );
   });
@@ -67,7 +69,8 @@ describe("importCcSwitchCatalog（SQLite 导入）", () => {
           name: "我的 DeepSeek",
           source: "config",
           baseUrl: "https://api.deepseek.com",
-          key: KEY1,
+          hasCredential: true,
+          credentialFingerprint: FP1,
           models: ["deepseek-v3"],
         },
       ],
@@ -78,7 +81,7 @@ describe("importCcSwitchCatalog（SQLite 导入）", () => {
     expect(ds.name).toBe("我的 DeepSeek");
     expect(ds.models).toEqual(["deepseek-v3", "deepseek-v4-pro", "deepseek-v4-flash"]);
     expect(
-      result.catalog.plans.filter((p) => p.key === KEY1 && p.baseUrl?.includes("api.deepseek.com")),
+      result.catalog.plans.filter((p) => p.credentialFingerprint === FP1 && p.baseUrl?.includes("api.deepseek.com")),
     ).toHaveLength(1);
   });
 
@@ -132,8 +135,9 @@ describe("importCcSwitchCatalog（SQLite 导入）", () => {
     ];
     const result = await importCcSwitchCatalog(rows, DB, emptyCatalog());
     expect(result.catalog.plans).toHaveLength(4);
-    expect(result.catalog.plans.find((p) => p.providerId === "ccfor")!.key).toBe(KEY2);
-    expect(result.catalog.plans.find((p) => p.name === "MiniMax M2.5 Highspeed")!.key).toBeUndefined();
+    expect(result.catalog.plans.find((p) => p.providerId === "ccfor")!.credentialFingerprint).toBe(FP2);
+    expect(result.catalog.plans.find((p) => p.name === "MiniMax M2.5 Highspeed")!.credentialFingerprint).toBeUndefined();
+    expect(result.catalog.plans.every((plan) => !("key" in plan))).toBe(true);
     expect(result.catalog.plans.find((p) => p.name === "My Codex")).toMatchObject({
       baseUrl: "https://www.uocode.com/v1",
       providerId: "custom",

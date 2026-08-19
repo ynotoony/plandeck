@@ -1,4 +1,5 @@
 import type { Adapter, Catalog, Plan } from "./types.js";
+import { keyFingerprint } from "./recognize.js";
 
 export function isFirstRun(catalog: Catalog): boolean {
   return catalog.plans.length === 0;
@@ -17,7 +18,8 @@ export async function bootstrapCatalog(adapters: Adapter[]): Promise<Catalog> {
         sourceDetail: adapter.configPath,
         providerId: fragment.providerId,
         baseUrl: fragment.baseUrl,
-        key: fragment.key,
+        hasCredential: !!fragment.key,
+        credentialFingerprint: fragment.key ? await keyFingerprint(fragment.key) : undefined,
         models: [fragment.model],
       });
       continue;

@@ -43,18 +43,18 @@ export async function plansMatch(a: Plan, b: Plan): Promise<boolean> {
 }
 
 async function credentialsMatch(
-  a: { baseUrl?: string; key?: string },
-  b: { baseUrl?: string; key?: string },
+  a: { baseUrl?: string; credentialFingerprint?: string },
+  b: { baseUrl?: string; credentialFingerprint?: string },
 ): Promise<boolean> {
   if (!baseUrlMatches(a.baseUrl, b.baseUrl)) return false;
-  if (!a.key || !b.key) return true;
-  return (await keyFingerprint(a.key)) === (await keyFingerprint(b.key));
+  if (!a.credentialFingerprint || !b.credentialFingerprint) return true;
+  return a.credentialFingerprint === b.credentialFingerprint;
 }
 
 async function envCredentialsMatch(fragment: ConfigFragment, plan: Plan): Promise<boolean> {
   if (!fragment.key) return false;
   const fingerprint = await keyFingerprint(fragment.key);
-  return plan.credentialFingerprint === fingerprint || (!!plan.key && fingerprint === (await keyFingerprint(plan.key)));
+  return plan.credentialFingerprint === fingerprint;
 }
 
 export async function recognize(
@@ -66,7 +66,13 @@ export async function recognize(
     if (plan.source === "oauth") continue;
     if (plan.source === "env") {
       if (!(await envCredentialsMatch(fragment, plan))) continue;
-    } else if (!(await credentialsMatch(fragment, plan))) continue;
+    } else {
+      const fragmentFingerprint = fragment.key ? await keyFingerprint(fragment.key) : undefined;
+      if (!(await credentialsMatch(
+        { baseUrl: fragment.baseUrl, credentialFingerprint: fragmentFingerprint },
+        plan,
+      ))) continue;
+    }
     if (plan.models.length > 0 && !plan.models.includes(fragment.model)) continue;
     return { status: "matched", plan };
   }

@@ -20,7 +20,8 @@ export const minimaxEnvPlan: Plan = {
   name: "MINIMAX",
   source: "env",
   sourceDetail: MINIMAX_ENV_VAR,
-  key: MINIMAX_ENV_KEY,
+  hasCredential: true,
+  credentialFingerprint: "c74e7eefe77f",
   models: [],
 };
 
