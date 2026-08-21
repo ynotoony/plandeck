@@ -219,7 +219,13 @@ export async function savePlan(plan: Omit<Plan, "id">, id?: string): Promise<voi
 
 export async function deletePlan(planId: string): Promise<void> {
   if (runtimeEnvPlanIds.has(planId)) throw new Error("环境变量 Plan 为只读");
+  assertPlanUnused(planId);
   await useCatalog(removePlan(storedCatalog, planId));
+}
+
+function assertPlanUnused(planId: string): void {
+  const usedBy = appState.tools.filter((tool) => tool.plan === planId);
+  if (usedBy.length > 0) throw new Error(`Plan 正在被 ${usedBy.map((tool) => toolName(tool.toolId)).join("、")} 使用，请先切换工具`);
 }
 
 export function isRuntimeEnvPlan(planId: string): boolean {
@@ -309,6 +315,7 @@ export async function saveEnvironmentPlan(plan: EnvironmentPlanWrite, originalId
 }
 
 export async function deleteEnvironmentPlan(planId: string): Promise<void> {
+  assertPlanUnused(planId);
   const document = environmentWrite();
   document.plans = document.plans.filter((plan) => plan.id !== planId);
   await useEnvironment(document);

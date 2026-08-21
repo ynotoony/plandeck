@@ -5,6 +5,8 @@
 This release fixes the status-bar menu hierarchy.
 
 - Add persistent Tool visibility controls across the window and status-bar views.
+- Replace the Plan modal with a searchable, filterable high-density list and right-side details editor.
+- Keep credentials out of the list, require explicit saves, and protect in-use Plans from deletion across hidden Tools.
 - Hide empty, unconfigured Tools from the cascade view by default.
 - Keep Plan and Model child items visible when a Tool has no environment Group binding.
 - Disable unavailable Model actions without disabling their expandable Plan parent.

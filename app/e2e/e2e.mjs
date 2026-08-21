@@ -192,6 +192,7 @@ try {
   await currentDialog.getByRole("button", { name: "关闭" }).click();
   await page.getByRole("button", { name: "现状（级联）" }).click();
   const cascadeTool = page.locator("tr[data-cascade-level='0'][data-cascade-label='hermes']");
+  const cascadeToolCount = await page.locator("tr[data-cascade-level='0']").count();
   const cascadeProject = page.locator("tr[data-cascade-level='1'][data-cascade-label='研究']");
   const cascadeSession = page.locator("tr[data-cascade-level='2'][data-cascade-label='20260810_100000_aaa111']");
   const unknownSession = page.locator("tr[data-cascade-level='2'][data-cascade-label='20260809_090000_bbb222']");
@@ -234,9 +235,9 @@ try {
   await toolToggle.click();
   check(
     "Tool 收起时隐藏全部 project 与 session",
-    (await cascadeProject.count()) === 0 &&
+      (await cascadeProject.count()) === 0 &&
       (await cascadeSession.count()) === 0 &&
-      (await page.locator("tr[data-cascade-level='0']").count()) === 7,
+      (await page.locator("tr[data-cascade-level='0']").count()) === cascadeToolCount,
   );
   await cascadeTool.getByRole("button", { name: "展开 Hermes" }).click();
   check("Tool 重新展开后恢复全部后代", (await cascadeProject.count()) === 1 && (await cascadeSession.count()) === 1);
@@ -247,7 +248,7 @@ try {
   const envPlanText = await envPlan.innerText();
   check(
     "environment Plan 显示脱敏来源和凭证状态",
-    envPlanText.includes("env") && envPlanText.includes("已设置") && !envPlanText.includes("minimax-e2e-key"),
+    envPlanText.includes("env") && envPlanText.includes("已配置") && !envPlanText.includes("minimax-e2e-key"),
   );
   await envPlan.getByRole("button", { name: "测试可用性" }).click();
   const planTestModal = page.getByRole("dialog", { name: "测试 Plan MiniMax Primary" });
@@ -263,7 +264,7 @@ try {
   await envPlanEditor.waitFor();
   check(
     "编辑 environment Plan 时凭据输入为空且不含明文",
-    (await envPlanEditor.locator("input[type='password']").inputValue()) === "" &&
+    (await envPlanEditor.locator("input[type='password']").count()) === 0 &&
       !(await envPlanEditor.innerText()).includes("minimax-e2e-key"),
   );
   await envPlanEditor.getByRole("button", { name: "取消" }).click();
@@ -326,7 +327,7 @@ try {
   await page.getByRole("button", { name: "现状（级联）" }).click();
   check("现状级联隐藏工具", (await page.locator("tr[data-cascade-level='0'][data-cascade-label='hermes']").count()) === 0);
   await page.getByRole("button", { name: "默认模型" }).click();
-  await hermesVisibility.check();
+  await page.locator(".tool-visibility-item", { hasText: "Hermes" }).locator("input").check();
   check("恢复工具后默认模型表恢复该工具", (await page.locator("tr[data-tool='hermes']").count()) === 1);
   await page.getByRole("button", { name: "工具显示" }).click();
   await shot("01-table");
