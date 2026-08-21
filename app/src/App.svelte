@@ -150,7 +150,6 @@
     planEditorDirty = false;
     editingPlan = plan;
   }
-
   function cascadeKey(row: (typeof cascadeRows)[number]): string {
     if (row.level === 0) return `tool:${row.toolId}`;
     return `project:${row.toolId}:${row.path || row.label}`;
