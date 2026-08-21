@@ -9,9 +9,11 @@
   let {
     toolId,
     onSwitch,
+    onHide,
   }: {
     toolId: string;
     onSwitch: () => void;
+    onHide: () => void;
   } = $props();
 
   const tool = $derived(appState.tools.find((t) => t.toolId === toolId));
@@ -88,6 +90,7 @@
       {/if}
       <button class="btn ghost" class:active={showHistory} onclick={() => (showHistory = !showHistory)}>历史版本</button>
       <button class="btn ghost" onclick={openConfig}>编辑</button>
+      <button class="btn ghost danger-text" onclick={onHide}>隐藏工具</button>
     </div>
     {#if showHistory}
       <section class="drawer-history">

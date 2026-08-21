@@ -145,11 +145,16 @@ export function derivePlanRows(tools: ToolState[], catalog: Catalog): PlanRow[] 
   }));
 }
 
-export function deriveCascadeRows(tools: ToolState[], catalog: Catalog): CascadeRow[] {
+export function deriveCascadeRows(
+  tools: ToolState[],
+  catalog: Catalog,
+  options: { activeOnly?: boolean } = {},
+): CascadeRow[] {
   const planName = (id: string | undefined): string | undefined =>
     id ? catalog.plans.find((plan) => plan.id === id)?.name ?? id : undefined;
   const rows: CascadeRow[] = [];
   for (const tool of tools) {
+    if (options.activeOnly && tool.status === "unset" && tool.projects.length === 0) continue;
     rows.push({
       level: 0,
       toolId: tool.toolId,

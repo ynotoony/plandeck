@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.3 Beta
+
+This release fixes the status-bar menu hierarchy.
+
+- Add persistent Tool visibility controls across the window and status-bar views.
+- Hide empty, unconfigured Tools from the cascade view by default.
+- Keep Plan and Model child items visible when a Tool has no environment Group binding.
+- Disable unavailable Model actions without disabling their expandable Plan parent.
+- Preserve Group member/model filtering for bound Tools.
+
 ## 0.1.2 Beta
 
 This release moves subscription credentials behind a dedicated local environment boundary and adds account groups for supported Tools.

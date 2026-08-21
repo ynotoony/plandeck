@@ -135,4 +135,24 @@ describe("现状（级联）视图推导", () => {
     expect(rows.some((row) => row.level === 2 && row.status === "unknown")).toBe(true);
     expect(deriveCascadeRows([], catalog)).toEqual([]);
   });
+
+  it("activeOnly 跳过没有配置和级联数据的 unset 工具", () => {
+    const rows = deriveCascadeRows(
+      [
+        { toolId: "empty", status: "unset", projects: [] },
+        { toolId: "configured", status: "unknown", projects: [] },
+        {
+          toolId: "history",
+          status: "unset",
+          projects: [{ name: "demo", path: "/tmp/demo", sessions: [] }],
+        },
+      ],
+      catalog,
+      { activeOnly: true },
+    );
+    expect(rows.filter((row) => row.level === 0).map((row) => row.toolId)).toEqual([
+      "configured",
+      "history",
+    ]);
+  });
 });

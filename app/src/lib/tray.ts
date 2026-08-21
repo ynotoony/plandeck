@@ -9,6 +9,7 @@ import {
   selectEnvironmentPlan,
   toolName,
   updateTool,
+  visibleTools,
 } from "./state.svelte";
 import { toast } from "./toast.svelte";
 
@@ -17,11 +18,23 @@ let initialized = false;
 
 export async function refreshTray(): Promise<void> {
   refreshChain = refreshChain.catch(() => undefined).then(async () => {
-    const names = Object.fromEntries(appState.tools.map((tool) => [tool.toolId, toolName(tool.toolId)]));
-    const tools = deriveTrayMenu(appState.tools, appState.catalog, names).map((tool) => {
+    const shownTools = visibleTools();
+    const names = Object.fromEntries(shownTools.map((tool) => [tool.toolId, toolName(tool.toolId)]));
+    const tools = deriveTrayMenu(shownTools, appState.catalog, names).map((tool) => {
       const adapter = adapterFor(tool.toolId);
       const group = groupForTool(tool.toolId);
-      if (!adapter?.environmentSupport.supported || !group) return { ...tool, plans: [] };
+      if (!adapter?.environmentSupport.supported || !group) {
+        // Keep the catalog hierarchy visible even when this Tool cannot switch
+        // through an environment Group yet. Native status-bar menus otherwise
+        // render only the top-level Tool item with no discoverable children.
+        return {
+          ...tool,
+          plans: tool.plans.map((plan) => ({
+            ...plan,
+            items: plan.items.map((item) => ({ ...item, enabled: false })),
+          })),
+        };
+      }
       const members = new Set(group.members);
       return {
         ...tool,

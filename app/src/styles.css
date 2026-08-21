@@ -262,6 +262,41 @@ tr[data-tool] {
 tr[data-tool]:hover td {
   background: var(--accent-faint);
 }
+.tool-visibility-toggle {
+  margin-left: auto;
+}
+.tool-visibility {
+  display: grid;
+  gap: 10px;
+  margin: -4px 0 12px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.tool-visibility > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.tool-visibility-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.tool-visibility-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  cursor: pointer;
+}
+.tool-visibility-item input {
+  accent-color: var(--accent);
+}
+.btn.danger-text {
+  color: var(--red);
+}
 
 .c-tabbar {
   display: flex;

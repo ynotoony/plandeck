@@ -39,6 +39,8 @@ import {
 } from "./tauri-fs";
 import type { BackupTarget } from "./tauri-fs";
 
+const HIDDEN_TOOLS_STORAGE_KEY = "plandeck-hidden-tools";
+
 export const appState = $state({
   ready: false,
   homeDir: "",
@@ -46,6 +48,7 @@ export const appState = $state({
   catalog: emptyCatalog() as Catalog,
   environment: { version: "1", plans: [], groups: [], bindings: [], errors: [] } as EnvironmentCatalog,
   tools: [] as ToolState[],
+  hiddenToolIds: new Set<string>(),
   firstRunGuide: false,
   firstRunPlanCount: 0,
 });
@@ -107,11 +110,35 @@ export function toolName(toolId: string): string {
   return adapterFor(toolId)?.toolName ?? toolId;
 }
 
+export function visibleTools(tools: ToolState[] = appState.tools): ToolState[] {
+  return tools.filter((tool) => !appState.hiddenToolIds.has(tool.toolId));
+}
+
+function loadHiddenTools(): void {
+  try {
+    const value = JSON.parse(localStorage.getItem(HIDDEN_TOOLS_STORAGE_KEY) ?? "[]");
+    if (Array.isArray(value) && value.every((id) => typeof id === "string")) {
+      appState.hiddenToolIds = new Set(value);
+    }
+  } catch {
+    appState.hiddenToolIds = new Set();
+  }
+}
+
+export function setToolHidden(toolId: string, hidden: boolean): void {
+  const next = new Set(appState.hiddenToolIds);
+  if (hidden) next.add(toolId);
+  else next.delete(toolId);
+  appState.hiddenToolIds = next;
+  localStorage.setItem(HIDDEN_TOOLS_STORAGE_KEY, JSON.stringify([...next].sort()));
+}
+
 export function backupTargets(): BackupTarget[] {
   return adapters.map((adapter) => ({ toolId: adapter.toolId, path: adapter.configPath }));
 }
 
 export async function init(): Promise<void> {
+  loadHiddenTools();
   appState.homeDir = await fetchHomeDir();
   appState.dataDir = await fetchDataDir();
   appState.environment = await fetchEnvironmentCatalog();
