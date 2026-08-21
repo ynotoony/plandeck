@@ -13,14 +13,14 @@ This file is the committed release ledger. GitHub milestones are the live issue 
 
 ## v0.1.3
 
-Status: Release candidate
+Status: Ready for release
 
 Theme: restore the complete status-bar menu hierarchy for unbound Tools.
 
 | Requirement | Delivery | State | Release note |
 | --- | --- | --- | --- |
-| Tool visibility preferences | `GH-20`, `LOCAL-20260819-01` | In progress | Persist hide/restore preferences across main and status-bar views. |
-| Status-bar Plan/Model child menu visibility | `LOCAL-20260821-01` | In progress | Preserve child items and disable unavailable entries when no Group is bound. |
+| Tool visibility preferences | [#20](https://github.com/ynotoony/plandeck/issues/20), [#22](https://github.com/ynotoony/plandeck/pull/22) | Done | Persist hide/restore preferences across main and status-bar views. |
+| Status-bar Plan/Model child menu visibility | [#22](https://github.com/ynotoony/plandeck/pull/22) | Done | Preserve child items and disable unavailable entries when no Group is bound. |
 
 ### Entry Gates
 
