@@ -10,18 +10,19 @@ This file is the committed release ledger. GitHub milestones are the live issue 
 | --- | --- | --- | --- |
 | `v0.1.0` | 2026-08-13 | Pre-release published | Initial Apple Silicon macOS Beta. Unsigned and not notarized. |
 | `v0.1.1` | 2026-08-18 | Pre-release published | Tool compatibility, Plan tests, and signed in-app updates. |
+| `v0.1.3` | 2026-08-21 | Pre-release published | Tool visibility and high-density Plan management; Apple Silicon DMG and updater artifacts published. |
 
 ## v0.1.3
 
-Status: Release candidate
+Status: Pre-release published
 
 Theme: restore the complete status-bar menu hierarchy and make Plan management safe for high-frequency use.
 
 | Requirement | Delivery | State | Release note |
 | --- | --- | --- | --- |
-| Tool visibility preferences | `GH-20`, `LOCAL-20260819-01` | In progress | Persist hide/restore preferences across main and status-bar views. |
-| Plan list and detail editor | `GH-21`, `LOCAL-20260819-02` | In progress | Search/filter Plan inventory, edit in a right-side drawer, and protect credentials and in-use Plans. |
-| Status-bar Plan/Model child menu visibility | `LOCAL-20260821-01` | In progress | Preserve child items and disable unavailable entries when no Group is bound. |
+| Tool visibility preferences | `GH-20`, `LOCAL-20260819-01` | Released | Persist hide/restore preferences across main and status-bar views. |
+| Plan list and detail editor | `GH-21`, `LOCAL-20260819-02` | Released | Search/filter Plan inventory, edit in a right-side drawer, and protect credentials and in-use Plans. |
+| Status-bar Plan/Model child menu visibility | `LOCAL-20260821-01` | Released | Preserve child items and disable unavailable entries when no Group is bound. |
 
 ### Entry Gates
 
