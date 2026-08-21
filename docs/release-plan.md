@@ -1,6 +1,6 @@
 # Release Plan
 
-Last updated: 2026-08-19
+Last updated: 2026-08-21
 
 This file is the committed release ledger. GitHub milestones are the live issue and PR view; both must agree before a release is published.
 
@@ -10,6 +10,27 @@ This file is the committed release ledger. GitHub milestones are the live issue 
 | --- | --- | --- | --- |
 | `v0.1.0` | 2026-08-13 | Pre-release published | Initial Apple Silicon macOS Beta. Unsigned and not notarized. |
 | `v0.1.1` | 2026-08-18 | Pre-release published | Tool compatibility, Plan tests, and signed in-app updates. |
+
+## v0.1.3
+
+Status: Release candidate
+
+Theme: restore the complete status-bar menu hierarchy for unbound Tools.
+
+| Requirement | Delivery | State | Release note |
+| --- | --- | --- | --- |
+| Tool visibility preferences | `GH-20`, `LOCAL-20260819-01` | In progress | Persist hide/restore preferences across main and status-bar views. |
+| Status-bar Plan/Model child menu visibility | `LOCAL-20260821-01` | In progress | Preserve child items and disable unavailable entries when no Group is bound. |
+
+### Entry Gates
+
+- The menu hierarchy is preserved for unbound and unsupported Tools.
+- Bound Group filtering remains unchanged.
+
+### Exit Gates
+
+- Core tests, App typecheck/build, and the E2E regression assertion pass.
+- `v0.1.3` artifacts and checksums are produced by the release workflow.
 
 ## v0.1.2
 

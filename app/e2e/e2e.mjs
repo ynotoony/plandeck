@@ -310,6 +310,25 @@ try {
       ),
     JSON.stringify(backend.trayTools().map((tool) => tool.label)),
   );
+  const hermesTray = backend.trayTools().find((tool) => tool.toolId === "hermes");
+  check(
+    "未绑定 Group 时状态栏仍显示 Plan 和模型子项",
+    hermesTray?.plans.some((plan) => plan.items.length > 0) === true &&
+      hermesTray?.plans
+        .filter((plan) => plan.items.length > 0)
+        .every((plan) => plan.enabled && plan.items.every((item) => !item.enabled)),
+  );
+  await page.getByRole("button", { name: "工具显示" }).click();
+  const hermesVisibility = page.locator(".tool-visibility-item", { hasText: "Hermes" }).locator("input");
+  await hermesVisibility.uncheck();
+  check("隐藏工具后默认模型表移除该工具", (await page.locator("tr[data-tool='hermes']").count()) === 0);
+  check("隐藏工具后托盘菜单移除该工具", !backend.trayTools().some((tool) => tool.toolId === "hermes"));
+  await page.getByRole("button", { name: "现状（级联）" }).click();
+  check("现状级联隐藏工具", (await page.locator("tr[data-cascade-level='0'][data-cascade-label='hermes']").count()) === 0);
+  await page.getByRole("button", { name: "默认模型" }).click();
+  await hermesVisibility.check();
+  check("恢复工具后默认模型表恢复该工具", (await page.locator("tr[data-tool='hermes']").count()) === 1);
+  await page.getByRole("button", { name: "工具显示" }).click();
   await shot("01-table");
 
   await row.click();

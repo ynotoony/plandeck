@@ -8,7 +8,9 @@
     init,
     refresh,
     scanCurrentPlans,
+    setToolHidden,
     toolName,
+    visibleTools,
   } from "./lib/state.svelte";
   import { toast, toastState } from "./lib/toast.svelte";
   import { initTray, refreshTray } from "./lib/tray";
@@ -48,10 +50,12 @@
   let editingGroup = $state<SubscriptionGroup | null | undefined>(undefined);
   let updateDialogOpen = $state(false);
   let collapsedCascadeNodes = $state(new Set<string>());
+  let showToolVisibility = $state(false);
 
-  const rows = $derived(deriveDefaultRows(appState.tools, appState.catalog));
-  const planRows = $derived(derivePlanRows(appState.tools, appState.catalog));
-  const cascadeRows = $derived(deriveCascadeRows(appState.tools, appState.catalog));
+  const shownTools = $derived(visibleTools());
+  const rows = $derived(deriveDefaultRows(shownTools, appState.catalog));
+  const planRows = $derived(derivePlanRows(shownTools, appState.catalog));
+  const cascadeRows = $derived(deriveCascadeRows(shownTools, appState.catalog, { activeOnly: true }));
   const visibleCascadeRows = $derived.by(() => {
     const visible: Array<{ row: (typeof cascadeRows)[number]; key: string }> = [];
     let collapsedTool: string | null = null;
@@ -120,6 +124,17 @@
   function closeAll(): void {
     drawerToolId = null;
     switchToolId = null;
+  }
+
+  function hideTool(toolId: string): void {
+    setToolHidden(toolId, true);
+    closeAll();
+    refreshTray().catch((e: unknown) => toast(String(e), "err"));
+  }
+
+  function changeToolVisibility(toolId: string, visible: boolean): void {
+    setToolHidden(toolId, !visible);
+    refreshTray().catch((e: unknown) => toast(String(e), "err"));
   }
 
   function cascadeKey(row: (typeof cascadeRows)[number]): string {
@@ -245,7 +260,38 @@
       {label}
     </button>
   {/each}
+  <button
+    type="button"
+    class="c-tab tool-visibility-toggle"
+    class:on={showToolVisibility}
+    aria-expanded={showToolVisibility}
+    onclick={() => (showToolVisibility = !showToolVisibility)}
+  >工具显示</button>
 </div>
+
+{#if showToolVisibility}
+  <section class="tool-visibility" aria-label="工具显示">
+    <div>
+      <b>工具显示</b>
+      <span class="dim small">隐藏只影响展示，不会删除配置或禁用切换。</span>
+    </div>
+    <div class="tool-visibility-list">
+      {#each appState.tools as tool (tool.toolId)}
+        <label class="tool-visibility-item">
+          <input
+            type="checkbox"
+            checked={!appState.hiddenToolIds.has(tool.toolId)}
+            onchange={(event) => changeToolVisibility(tool.toolId, (event.currentTarget as HTMLInputElement).checked)}
+          />
+          <span>{toolName(tool.toolId)}</span>
+          <StatusBadge status={tool.status} />
+        </label>
+      {:else}
+        <span class="dim">暂无已注册工具</span>
+      {/each}
+    </div>
+  </section>
+{/if}
 
 {#if !appState.ready}
   <p class="dim">加载中…</p>
@@ -433,7 +479,7 @@
   <div id="overlay" onclick={closeAll} role="presentation"></div>
 {/if}
 {#if drawerToolId}
-  <ToolDrawer toolId={drawerToolId} onSwitch={() => (switchToolId = drawerToolId)} />
+  <ToolDrawer toolId={drawerToolId} onSwitch={() => (switchToolId = drawerToolId)} onHide={() => hideTool(drawerToolId!)} />
 {/if}
 {#if switchToolId}
   <SwitchModal toolId={switchToolId} onCancel={() => (switchToolId = null)} onDone={closeAll} />
