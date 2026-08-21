@@ -46,6 +46,9 @@
   let migrating = $state(false);
   let refreshing = $state(false);
   let editingPlan = $state<Plan | null | undefined>(undefined);
+  let planEditorDirty = $state(false);
+  let planQuery = $state("");
+  let planUsageFilter = $state<"all" | "used" | "unused">("all");
   let testingPlan = $state<Plan | null>(null);
   let editingGroup = $state<SubscriptionGroup | null | undefined>(undefined);
   let updateDialogOpen = $state(false);
@@ -55,6 +58,12 @@
   const shownTools = $derived(visibleTools());
   const rows = $derived(deriveDefaultRows(shownTools, appState.catalog));
   const planRows = $derived(derivePlanRows(shownTools, appState.catalog));
+  const filteredPlanRows = $derived(planRows.filter((row) => {
+    const query = planQuery.trim().toLowerCase();
+    const matchesQuery = !query || [row.plan.name, row.plan.note, row.plan.source, row.plan.sourceDetail, row.plan.baseUrl, ...row.plan.models].some((value) => value?.toLowerCase().includes(query));
+    const matchesUsage = planUsageFilter === "all" || (planUsageFilter === "used" ? row.usedBy.length > 0 : row.usedBy.length === 0);
+    return matchesQuery && matchesUsage;
+  }));
   const cascadeRows = $derived(deriveCascadeRows(shownTools, appState.catalog, { activeOnly: true }));
   const visibleCascadeRows = $derived.by(() => {
     const visible: Array<{ row: (typeof cascadeRows)[number]; key: string }> = [];
@@ -106,7 +115,6 @@
       if (e.key === "Escape") {
         switchToolId = null;
         drawerToolId = null;
-        editingPlan = undefined;
         testingPlan = null;
         editingGroup = undefined;
         updateDialogOpen = false;
@@ -135,6 +143,12 @@
   function changeToolVisibility(toolId: string, visible: boolean): void {
     setToolHidden(toolId, !visible);
     refreshTray().catch((e: unknown) => toast(String(e), "err"));
+  }
+
+  function openPlan(plan: Plan | null): void {
+    if (planEditorDirty && !confirm("存在未保存修改，确定放弃吗？")) return;
+    planEditorDirty = false;
+    editingPlan = plan;
   }
 
   function cascadeKey(row: (typeof cascadeRows)[number]): string {
@@ -371,6 +385,17 @@
     </tbody>
   </table>
 {:else if tab === "plans"}
+  <div class="plan-toolbar">
+    <div class="plan-search-row">
+      <input class="plan-search" type="search" bind:value={planQuery} placeholder="搜索 Plan、来源、模型或备注" aria-label="搜索 Plan" />
+      <div class="plan-filter" role="group" aria-label="使用状态筛选">
+        {#each [["all", "全部"], ["used", "正在使用"], ["unused", "未使用"]] as [value, label]}
+          <button type="button" class:active={planUsageFilter === value} onclick={() => (planUsageFilter = value as typeof planUsageFilter)}>{label}</button>
+        {/each}
+      </div>
+      <span class="dim small">{filteredPlanRows.length} / {planRows.length}</span>
+      <button class="btn mini" onclick={() => openPlan(null)}>新建 Plan</button>
+    </div>
   <div class="plan-actions">
     <span class="dim">环境订阅 {appState.environment.plans.length} 个 Plan · {appState.environment.groups.length} 个 Group</span>
     <button class="btn ghost mini" disabled={installingLoader} onclick={installLoader}>
@@ -386,9 +411,9 @@
       {importing ? "导入中…" : "导入 ccSwitch"}
     </button>
     <button class="btn mini" onclick={() => (editingGroup = null)}>新建 Group</button>
-    <button class="btn mini" onclick={() => (editingPlan = null)}>新建 Plan</button>
   </div>
-  <table class="c-table">
+  </div>
+  <div class="table-scroll"><table class="c-table plan-table">
     <thead>
       <tr>
         <th>Plan</th>
@@ -396,11 +421,12 @@
         <th>凭证</th>
         <th>模型</th>
         <th>当前使用</th>
+        <th>操作</th>
       </tr>
     </thead>
     <tbody>
-      {#each planRows as row (row.plan.id)}
-         <tr data-plan={row.plan.id} onclick={() => (editingPlan = row.plan)}>
+      {#each filteredPlanRows as row (row.plan.id)}
+         <tr data-plan={row.plan.id} class:selected={editingPlan?.id === row.plan.id} onclick={() => openPlan(row.plan)}>
            <td>
              <b>{row.plan.name}</b>{#if row.plan.note}<div class="small dim">{row.plan.note}</div>{/if}
              {#if row.plan.source === "env" && row.plan.hasCredential && row.plan.baseUrl && row.plan.models.length}
@@ -410,23 +436,24 @@
           <td><span class="badge b-dim">{row.plan.source}</span><div class="small dim source-detail">{row.plan.sourceDetail ?? "—"}</div></td>
           <td class="mono">
             {#if row.plan.hasCredential}
-              已设置{#if row.plan.credentialFingerprint} · {row.plan.credentialFingerprint}{/if}
+              已配置
             {:else if row.plan.source === "oauth"}
-              OAuth
+              登录会话
             {:else if row.plan.source === "env"}
               未设置
             {:else}
               旧 Catalog（待迁移）
             {/if}
           </td>
-          <td>{row.plan.models.length ? row.plan.models.join(", ") : "—"}</td>
+          <td>{#if row.plan.models.length}{row.plan.models.slice(0, 3).join(", ")}{#if row.plan.models.length > 3} <span class="badge b-dim">+{row.plan.models.length - 3}</span>{/if}{:else}—{/if}</td>
           <td>{row.usedBy.length ? row.usedBy.map(toolName).join(", ") : "—"}</td>
+          <td><button class="key-toggle" onclick={(event) => { event.stopPropagation(); openPlan(row.plan); }}>详情</button></td>
         </tr>
       {:else}
-        <tr><td colspan="5" class="dim">Catalog 为空，可扫描当前配置或导入 ccSwitch。</td></tr>
+        <tr><td colspan="6" class="dim">没有符合条件的 Plan。</td></tr>
       {/each}
     </tbody>
-  </table>
+  </table></div>
   <section class="group-section" aria-label="订阅 Group">
     <h2>Subscription Groups</h2>
     {#if appState.environment.errors.length}
@@ -485,7 +512,7 @@
   <SwitchModal toolId={switchToolId} onCancel={() => (switchToolId = null)} onDone={closeAll} />
 {/if}
 {#if editingPlan !== undefined}
-  <PlanEditor plan={editingPlan} onDone={() => (editingPlan = undefined)} />
+  <PlanEditor plan={editingPlan} onDirtyChange={(dirty) => (planEditorDirty = dirty)} onDone={() => { planEditorDirty = false; editingPlan = undefined; }} />
 {/if}
 {#if testingPlan}
   <PlanTestModal plan={testingPlan} onDone={() => (testingPlan = null)} />

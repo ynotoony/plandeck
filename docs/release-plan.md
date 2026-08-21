@@ -15,11 +15,12 @@ This file is the committed release ledger. GitHub milestones are the live issue 
 
 Status: Release candidate
 
-Theme: restore the complete status-bar menu hierarchy for unbound Tools.
+Theme: restore the complete status-bar menu hierarchy and make Plan management safe for high-frequency use.
 
 | Requirement | Delivery | State | Release note |
 | --- | --- | --- | --- |
 | Tool visibility preferences | `GH-20`, `LOCAL-20260819-01` | In progress | Persist hide/restore preferences across main and status-bar views. |
+| Plan list and detail editor | `GH-21`, `LOCAL-20260819-02` | In progress | Search/filter Plan inventory, edit in a right-side drawer, and protect credentials and in-use Plans. |
 | Status-bar Plan/Model child menu visibility | `LOCAL-20260821-01` | In progress | Preserve child items and disable unavailable entries when no Group is bound. |
 
 ### Entry Gates

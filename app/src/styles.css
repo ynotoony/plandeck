@@ -392,6 +392,16 @@ tr[data-tool]:hover td {
 .plan-actions > span {
   margin-right: auto;
 }
+.plan-toolbar { display: grid; gap: 8px; margin-bottom: 10px; }
+.plan-search-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.plan-search { flex: 1 1 260px; min-width: 180px; padding: 7px 9px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.plan-filter { display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2); }
+.plan-filter button { border: 0; padding: 4px 9px; border-radius: 5px; color: var(--dim); background: transparent; cursor: pointer; font: inherit; font-size: 11px; }
+.plan-filter button.active { color: var(--text); background: var(--panel); }
+.table-scroll { overflow-x: auto; }
+.plan-table { min-width: 760px; }
+.plan-table tr[data-plan] { cursor: pointer; }
+.plan-table tr[data-plan]:hover, .plan-table tr[data-plan].selected { background: var(--accent-soft); }
 .source-detail {
   max-width: 240px;
   overflow-wrap: anywhere;
@@ -601,6 +611,7 @@ tr[data-tool]:hover td {
   .header-controls { flex-wrap: wrap; justify-content: flex-end; }
   .first-run-actions { grid-template-columns: 1fr; }
   .c-table { display: block; overflow-x: auto; }
+  #plan-drawer { width: 96vw; }
 }
 
 #overlay {
@@ -621,6 +632,17 @@ tr[data-tool]:hover td {
   padding: 22px;
   overflow: auto;
 }
+#plan-overlay { position: fixed; inset: 0; z-index: 69; background: var(--overlay); }
+#plan-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 70; width: min(430px, 92vw); padding: 22px; overflow: auto; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -18px 0 50px var(--modal-shadow); }
+#plan-drawer h2 { font-size: 16px; margin: 4px 0 0; }
+.drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.icon-btn { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 6px; color: var(--dim); background: transparent; cursor: pointer; font-size: 18px; }
+.notice { padding: 9px 10px; margin: 8px 0; border: 1px solid var(--line); border-radius: 6px; color: var(--dim); }
+.notice.warning { color: var(--amber); border-color: var(--amber); }
+.detail-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.detail-row > span { color: var(--dim); }
+.detail-row code { max-width: 65%; overflow-wrap: anywhere; text-align: right; }
+.drawer-actions { display: flex; gap: 8px; margin-top: 18px; }
 #drawer h2 {
   font-size: 14px;
   margin-bottom: 10px;
