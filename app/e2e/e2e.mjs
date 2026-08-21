@@ -1,3 +1,8 @@
+// input: playwright-core + mocks.mjs + debug 二进制 + core fixtures
+// output: 端到端断言结果（exit code）
+// position: E2E 入口：临时 HOME + mock 后端 + 系统 Chrome
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { chromium } from "playwright-core";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";

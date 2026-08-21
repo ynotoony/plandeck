@@ -1,3 +1,8 @@
+# input: issues opened/edited/reopened 事件
+# output: issue 上的 size 分级评论与标签
+# position: 需求自动分级流水线
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 name: Issue triage
 
 on:

@@ -1,3 +1,8 @@
+// input: node:fs/os/sqlite + src 各适配器 + fixtures/
+// output: FIXTURES 常量、makeTempHome、install*Fixture、loadFixtureCatalog、共享 Plan 样本
+// position: 测试基建：所有测试共用的临时 HOME 与 fixture 安装
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";

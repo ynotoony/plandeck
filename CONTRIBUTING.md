@@ -1,3 +1,6 @@
+<!-- input: 贡献流程 | output: 贡献指引 | position: 贡献文档
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 # Contributing
 
 Thanks for helping improve PlanDeck.

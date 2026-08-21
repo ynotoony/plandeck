@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// input: 版本/签名/产物路径参数
+// output: createUpdaterManifest()：Tauri latest.json 清单
+// position: updater 清单生成（release workflow 调用）
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";

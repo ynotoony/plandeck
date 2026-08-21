@@ -1,3 +1,8 @@
+// input: node:fs + types.FsPort
+// output: nodeFs（含原子写与 chmod）
+// position: FsPort 的 Node 实现：测试与脚本环境用
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import {
   chmodSync,
   existsSync,

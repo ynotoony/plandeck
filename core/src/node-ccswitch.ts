@@ -1,3 +1,8 @@
+// input: node:sqlite + ccswitch.ts
+// output: readCcSwitchRows()/importCcSwitchDatabase()/firstRunSetupFromDb()
+// position: ccSwitch 数据库的 IO 绑定层
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import {

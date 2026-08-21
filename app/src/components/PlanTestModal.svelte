@@ -1,3 +1,6 @@
+<!-- input: tauri-fs testEnvironmentPlan | output: Plan 可用性测试弹窗 | position: 组件
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 <script lang="ts">
   import type { Plan } from "@plandeck/core";
   import { testEnvironmentPlan, type PlanTestResult } from "../lib/tauri-fs";

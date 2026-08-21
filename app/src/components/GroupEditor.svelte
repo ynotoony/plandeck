@@ -1,3 +1,6 @@
+<!-- input: state 的 Group 保存/预览动作 | output: Group 编辑表单 + 重绑定 diff 预览 | position: 组件
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 <script lang="ts">
   import type { FileEdit, SubscriptionGroup } from "@plandeck/core";
   import { appState, deleteGroup, previewGroupReconfiguration, saveGroup, toolName } from "../lib/state.svelte";

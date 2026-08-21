@@ -1,3 +1,8 @@
+# input: 无
+# output: 关闭空白 issue + 安全 advisory 链接
+# position: issue 入口配置
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability

@@ -1,3 +1,8 @@
+// input: smol-toml + shared；读 ~/.kimi/config.toml
+// output: createKimiAdapter（detection-only，不做环境绑定）
+// position: Kimi Code 只读检测适配器
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse } from "smol-toml";
 import type { Adapter, AdapterContext, ConfigFragment, ToolState } from "../types.js";
 import { stateFromFragment, str } from "./shared.js";

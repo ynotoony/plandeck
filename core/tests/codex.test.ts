@@ -1,3 +1,8 @@
+// input: adapters/codex.ts + fixtures
+// output: vitest 用例
+// position: Codex 适配器与 TOML 编辑的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse } from "smol-toml";
 import { describe, expect, it } from "vitest";
 import { applyFileEdits } from "../src/apply.js";

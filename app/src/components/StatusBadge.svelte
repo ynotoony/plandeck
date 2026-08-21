@@ -1,3 +1,6 @@
+<!-- input: Status props | output: matched/unset/unknown/oauth 徽章 | position: 组件
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 <script lang="ts">
   import type { Status } from "@plandeck/core";
 

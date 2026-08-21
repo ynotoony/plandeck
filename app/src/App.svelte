@@ -1,3 +1,6 @@
+<!-- input: core 视图推导 + lib/state + 各组件 | output: 三 Tab 窗口（级联/Plans/备份）+ 首跑引导 + 设置 | position: 根组件
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 <script lang="ts">
   import { onMount } from "svelte";
   import { deriveCascadeRows, deriveDefaultRows, derivePlanRows } from "@plandeck/core";

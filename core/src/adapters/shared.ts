@@ -1,3 +1,8 @@
+// input: jsonc-parser + recognize + types
+// output: jsonSet/slug/walkFiles/stateFromFragment/排序等工具
+// position: 适配器共享工具箱
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { applyEdits, modify } from "jsonc-parser";
 import { recognize } from "../recognize.js";
 import type {

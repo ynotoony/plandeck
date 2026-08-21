@@ -1,3 +1,8 @@
+// input: 无
+// output: Status/ToolState/Plan/Catalog/GroupContract/Adapter/FsPort/SqlitePort 等全部领域类型
+// position: 全局契约层：所有模块依赖它，它不依赖任何模块
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 export type Status = "matched" | "unknown" | "unset" | "oauth";
 
 export interface SessionState {

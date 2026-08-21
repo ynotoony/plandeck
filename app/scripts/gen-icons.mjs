@@ -1,3 +1,8 @@
+// input: node:zlib/fs（无外部素材依赖）
+// output: src-tauri/icons 下的 icon.png/tray.png/64x64.png
+// position: 图标生成脚本
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

@@ -1,3 +1,8 @@
+# input: 报告者填写
+# output: 结构化 bug issue（默认 labels bug+needs-triage）
+# position: bug 表单模板
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 name: Bug report
 description: Report a reproducible problem in PlanDeck.
 title: "bug: "

@@ -1,3 +1,6 @@
+<!-- input: 发布流程实践 | output: 发版前置检查与产物清单操作手册 | position: 发版流程文档
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 # Releasing PlanDeck
 
 ## Current Release Target

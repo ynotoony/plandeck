@@ -1,3 +1,8 @@
+// input: types + FsPort
+// output: Catalog 增删改查、load/save、stripCatalogCredentials
+// position: Catalog 持久化的数据操作层
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import type { Catalog, Plan } from "./types.js";
 import type { FsPort } from "./types.js";
 

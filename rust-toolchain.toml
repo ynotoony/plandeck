@@ -1,3 +1,8 @@
+# input: 无
+# output: Rust 1.94.0 工具链锁定
+# position: Rust 版本配置
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 [toolchain]
 channel = "1.94.0"
 targets = ["aarch64-apple-darwin"]

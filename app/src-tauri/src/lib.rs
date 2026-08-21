@@ -1,3 +1,8 @@
+// input: environment.rs + fsx.rs + tauri/rusqlite/serde
+// output: 全部 IPC 命令（fs/sqlite/env/backup/editor/tray/updater）+ 托盘菜单与窗口管理
+// position: Rust 运行时中枢：命令注册与安全边界
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 mod environment;
 mod fsx;
 

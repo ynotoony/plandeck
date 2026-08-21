@@ -1,3 +1,8 @@
+// input: @plandeck/core 全部领域函数 + tauri-fs IPC
+// output: appState（catalog/tools/env/binding）+ init/refresh/切换/绑定/Plan-Group 编辑编排
+// position: 前端业务状态中枢
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import {
   bootstrapCatalog,
   applyFileEdits,

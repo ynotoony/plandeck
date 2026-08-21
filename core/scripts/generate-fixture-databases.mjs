@@ -1,3 +1,8 @@
+// input: node:sqlite
+// output: tests/fixtures 下的 hermes projects.db/state.db 与 opencode.db
+// position: fixture 数据库重建脚本（npm run fixtures:generate）
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { DatabaseSync } from "node:sqlite";
 import { rmSync } from "node:fs";
 import { dirname, join } from "node:path";

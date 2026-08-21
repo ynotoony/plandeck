@@ -1,3 +1,8 @@
+// input: std::fs + chrono + serde
+// output: 原子写、备份目录与 .manifest.json、恢复、文件模式
+// position: 文件 IO 边界
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 use std::fs;
 use std::path::{Path, PathBuf};
 

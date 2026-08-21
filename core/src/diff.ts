@@ -1,3 +1,8 @@
+// input: 无
+// output: diffLines() LCS 行级差异
+// position: 纯算法：切换预览的 diff 渲染依据
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 export type DiffLineType = "ctx" | "add" | "del";
 
 export interface DiffLine {

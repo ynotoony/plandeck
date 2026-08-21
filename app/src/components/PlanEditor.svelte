@@ -1,3 +1,6 @@
+<!-- input: state 的 Plan 保存/删除动作 | output: Plan 右侧详情编辑表单（显式保存、删除保护、凭证状态） | position: 组件
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 <script lang="ts">
   import { onMount } from "svelte";
   import type { Plan, PlanSource } from "@plandeck/core";

@@ -1,3 +1,8 @@
+// input: smol-toml + bootstrap/recognize/shared
+// output: importCcSwitchCatalog()/firstRunSetup()/mergeCatalogPlans()
+// position: ccSwitch 历史导入的纯逻辑层
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse as parseToml } from "smol-toml";
 import { bootstrapCatalog, hostOf } from "./bootstrap.js";
 import { keyFingerprint, normalizeBaseUrl, plansMatch } from "./recognize.js";

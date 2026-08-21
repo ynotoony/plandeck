@@ -1,3 +1,8 @@
+// input: smol-toml + shared；读 ~/.codex/config.toml 与 rollout 会话
+// output: createCodexAdapter（含 GroupContract 与 TOML 编辑）
+// position: Codex CLI 适配器
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse } from "smol-toml";
 import type {
   Adapter,

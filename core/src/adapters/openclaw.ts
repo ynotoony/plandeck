@@ -1,3 +1,8 @@
+// input: jsonc-parser + shared；读 ~/.openclaw/openclaw.json 与 sessions
+// output: createOpenclawAdapter
+// position: OpenClaw 适配器
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse } from "jsonc-parser";
 import type {
   Adapter,

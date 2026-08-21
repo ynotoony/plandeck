@@ -1,3 +1,8 @@
+// input: ccswitch/bootstrap + helpers
+// output: vitest 用例
+// position: 首跑导入端到端流程的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { bootstrapCatalog, isFirstRun } from "../src/bootstrap.js";

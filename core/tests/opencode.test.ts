@@ -1,3 +1,8 @@
+// input: adapters/opencode.ts + fixtures
+// output: vitest 用例
+// position: opencode 适配器的测试（JSONC+db）
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "jsonc-parser";

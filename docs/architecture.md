@@ -1,3 +1,6 @@
+<!-- input: 代码库现状（core/app/src-tauri） | output: 分层、数据流、安全边界的权威描述 | position: 架构文档（改动架构必须同步更新）
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 # PlanDeck Architecture
 
 PlanDeck is a local Tauri desktop application with a Svelte frontend, a Rust runtime bridge, and a TypeScript core library.

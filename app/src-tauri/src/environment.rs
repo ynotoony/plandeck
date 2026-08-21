@@ -1,3 +1,8 @@
+// input: ~/.config/ai-subscriptions/subscriptions.env + fsx 备份
+// output: EnvironmentStore：env 解析/校验/原子写/备份、loader 安装、遗留凭据迁移（凭据不出边界）
+// position: 环境凭据唯一读写边界
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};

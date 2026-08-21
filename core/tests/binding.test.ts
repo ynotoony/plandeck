@@ -1,3 +1,8 @@
+// input: environment/绑定相关模块 + helpers
+// output: vitest 用例
+// position: Tool↔Group 绑定与契约投影的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse as parseJson } from "jsonc-parser";
 import { parse as parseToml } from "smol-toml";
 import { parse as parseYaml } from "yaml";

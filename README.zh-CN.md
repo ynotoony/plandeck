@@ -1,3 +1,6 @@
+<!-- input: 项目现状 | output: 中文项目说明 | position: 公开入口文档（中文）
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 # PlanDeck
 
 面向 macOS 的本地 AI 订阅和模型 Plan 管理器。

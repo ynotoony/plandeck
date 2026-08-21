@@ -1,3 +1,8 @@
+# input: npm(app/core) 与 cargo(src-tauri) 生态
+# output: 每周依赖升级 PR（limit 5）
+# position: 依赖升级配置
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 version: 2
 updates:
   - package-ecosystem: npm

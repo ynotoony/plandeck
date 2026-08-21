@@ -1,3 +1,8 @@
+// input: ToolState/Catalog（types）
+// output: 托盘菜单、Cascade/Plan/Default 行推导、parseTrayAction
+// position: 纯视图推导层：窗口与状态栏共用
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import type { Catalog, Plan, Status, ToolState } from "./types.js";
 
 export interface TrayMenuItem {

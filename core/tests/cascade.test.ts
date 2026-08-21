@@ -1,3 +1,8 @@
+// input: views.ts + helpers
+// output: vitest 用例
+// position: Cascade 行推导的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { describe, expect, it } from "vitest";
 import { nodeFs } from "../src/node-fs.js";
 import { nodeSqlite } from "../src/node-sqlite.js";

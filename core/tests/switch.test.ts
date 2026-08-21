@@ -1,3 +1,8 @@
+// input: switch.ts/apply.ts
+// output: vitest 用例
+// position: commitSwitch 备份与拒写语义的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

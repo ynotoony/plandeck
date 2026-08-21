@@ -1,3 +1,8 @@
+// input: localStorage + matchMedia
+// output: themeState/applyTheme：system|light|dark
+// position: 主题模块
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 export type Theme = "system" | "light" | "dark";
 
 const STORAGE_KEY = "plandeck-theme";

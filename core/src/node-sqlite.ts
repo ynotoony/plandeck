@@ -1,3 +1,8 @@
+// input: node:sqlite + types.SqlitePort
+// output: nodeSqlite（只读查询）
+// position: SqlitePort 的 Node 实现
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import type { SqlitePort } from "./types.js";

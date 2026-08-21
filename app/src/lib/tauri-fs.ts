@@ -1,3 +1,8 @@
+// input: @tauri-apps/api invoke → Rust 命令（lib.rs 契约）
+// output: tauriFs/tauriSqlite 端口 + 备份/环境/updater/编辑器命令封装
+// position: 唯一 IPC 客户端
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { invoke } from "@tauri-apps/api/core";
 import type {
   EnvironmentCatalog,

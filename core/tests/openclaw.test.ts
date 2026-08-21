@@ -1,3 +1,8 @@
+// input: adapters/openclaw.ts + fixtures
+// output: vitest 用例
+// position: OpenClaw 适配器的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse } from "jsonc-parser";
 import { describe, expect, it } from "vitest";
 import { applyFileEdits } from "../src/apply.js";

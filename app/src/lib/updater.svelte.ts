@@ -1,3 +1,8 @@
+// input: Rust updater/release 命令（经 tauri invoke）
+// output: updaterState + 检查/安装/历史/启动检查偏好
+// position: 应用内更新模块
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "./toast.svelte";
 

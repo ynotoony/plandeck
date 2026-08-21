@@ -1,3 +1,8 @@
+// input: jsonc-parser + shared；读 ~/.claude/settings.json 与 transcripts
+// output: createClaudeAdapter（含 OAuth 识别与 GroupContract）
+// position: Claude Code 适配器
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse } from "jsonc-parser";
 import type {
   Adapter,

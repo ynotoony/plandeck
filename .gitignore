@@ -1,3 +1,8 @@
+# input: 无
+# output: git 忽略规则
+# position: 仓库配置（勿注释外添加内容）
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 node_modules/
 dist/
 target/

@@ -1,3 +1,8 @@
+# input: 请求者填写
+# output: 结构化 feature issue（默认 labels enhancement+needs-triage）
+# position: 功能请求表单模板
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 name: Feature request
 description: Suggest an improvement to PlanDeck.
 title: "feature: "

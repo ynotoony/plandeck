@@ -1,3 +1,8 @@
+// input: yaml + shared；读 ~/.hermes/config.yaml、projects.db、state.db、sessions
+// output: createHermesAdapter（含 GroupContract）
+// position: Hermes 适配器
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { Document, parse, parseDocument } from "yaml";
 import type {
   Adapter,

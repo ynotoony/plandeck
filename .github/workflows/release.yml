@@ -1,3 +1,8 @@
+# input: 手动触发（version 输入）+ updater 私钥 secrets
+# output: DMG + updater 产物、签名、latest.json、GitHub pre-release
+# position: 发版流水线
+# 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 name: Release macOS Beta
 
 on:

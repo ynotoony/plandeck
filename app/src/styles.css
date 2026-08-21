@@ -1,3 +1,8 @@
+/* input: 主题变量（theme.svelte.ts 设置的 data-theme）
+   output: 全部 CSS 变量与组件样式
+   position: 全局唯一样式表
+   维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 */
+
 :root {
   color-scheme: dark;
   --bg: #0f1115;

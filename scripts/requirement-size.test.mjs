@@ -1,3 +1,8 @@
+// input: requirement-size.mjs
+// output: node:test 用例
+// position: 分级算法单测
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import { classifySignals, signalsFromIssueBody } from "./requirement-size.mjs";

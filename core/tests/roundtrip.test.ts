@@ -1,3 +1,8 @@
+// input: recognize/switch/apply + helpers
+// output: vitest 用例
+// position: 识别→切换→再识别回环的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { chmodSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { applyFileEdits } from "../src/apply.js";

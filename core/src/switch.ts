@@ -1,3 +1,8 @@
+// input: apply.ts + types + 外部注入的 BackupFn
+// output: commitSwitch()：备份→写编辑→重读状态
+// position: 切换编排层
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { applyFileEdits } from "./apply.js";
 import type { Adapter, FileEdit, FsPort, ToolState } from "./types.js";
 

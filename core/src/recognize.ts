@@ -1,3 +1,8 @@
+// input: Catalog 与 ConfigFragment（types）
+// output: recognize() 四态识别、keyFingerprint()、baseUrl 归一化比对
+// position: 识别引擎：产出 matched/unknown/unset/oauth
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import type { Catalog, ConfigFragment, Plan, Status } from "./types.js";
 
 export interface Recognition {

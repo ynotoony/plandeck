@@ -1,3 +1,8 @@
+// input: environment.ts
+// output: vitest 用例
+// position: subscriptions.env 解析/校验/序列化的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { describe, expect, it } from "vitest";
 import {
   addCredentialFingerprints,

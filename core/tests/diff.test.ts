@@ -1,3 +1,8 @@
+// input: diff.ts
+// output: vitest 用例
+// position: diffLines 行级差异的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { describe, expect, it } from "vitest";
 import { diffLines } from "../src/diff.js";
 

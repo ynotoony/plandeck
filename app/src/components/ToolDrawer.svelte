@@ -1,3 +1,6 @@
+<!-- input: state（adapterFor/groupForTool）+ tauri-fs（openInEditor） | output: Tool 详情抽屉：状态/绑定/重载提示/备份 | position: 组件
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 <script lang="ts">
   import type { EnvironmentBindingStatus } from "@plandeck/core";
   import { adapterFor, appState, clearToolBindingPending, groupForTool, refresh, saveToolBinding, toolName } from "../lib/state.svelte";

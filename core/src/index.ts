@@ -1,3 +1,8 @@
+// input: 无（纯再导出）
+// output: @plandeck/core 全部公共 API
+// position: 包唯一入口（package.json main）
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 export * from "./types.js";
 export * from "./recognize.js";
 export * from "./catalog.js";

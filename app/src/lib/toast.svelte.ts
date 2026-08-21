@@ -1,3 +1,8 @@
+// input: 无
+// output: toastState + toast() 定时消失
+// position: 全局提示
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 interface ToastState {
   msg: string;
   kind: "ok" | "err";

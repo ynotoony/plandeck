@@ -1,3 +1,8 @@
+// input: src-tauri lib.rs/fsx.rs 的命令契约（注释内声明）
+// output: 4399 端口的 HTTP mock Tauri 后端
+// position: E2E 后端替身
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { createServer } from "node:http";
 import {
   chmodSync,

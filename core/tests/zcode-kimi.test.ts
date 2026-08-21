@@ -1,3 +1,8 @@
+// input: adapters/zcode.ts + adapters/kimi.ts
+// output: vitest 用例
+// position: ZCode/Kimi 只读检测适配器的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";

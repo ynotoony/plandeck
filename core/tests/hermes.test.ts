@@ -1,3 +1,8 @@
+// input: adapters/hermes.ts + fixtures（YAML+SQLite）
+// output: vitest 用例
+// position: Hermes 适配器的测试
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
 import { createHermesAdapter } from "../src/adapters/hermes.js";

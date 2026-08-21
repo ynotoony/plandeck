@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// input: issue 正文（GitHub issue-triage workflow 传入）
+// output: classifySignals()/signalsFromIssueBody()：XS~XL 分级与拆分要求
+// position: 需求分级算法（被 .github/workflows/issue-triage.yml 调用）
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 
 import { appendFileSync } from "node:fs";
 

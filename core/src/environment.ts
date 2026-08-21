@@ -1,3 +1,8 @@
+// input: recognize（指纹/URL 归一化）
+// output: subscriptions.env 的 TS 侧解析/校验/序列化与 groupContract()
+// position: 环境契约的 TS 镜像（权威实现在 Rust EnvironmentStore）
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { keyFingerprint, normalizeBaseUrl } from "./recognize.js";
 
 export const ENV_FILE_VERSION = "1";

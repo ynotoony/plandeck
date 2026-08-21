@@ -1,3 +1,6 @@
+<!-- input: 需求处理实践 | output: 需求 intake/triage/size/实现/验收/发布状态机 | position: 需求流程文档
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 # Requirements and Delivery Workflow
 
 PlanDeck accepts requests from GitHub Issues and from maintainer conversations in Codex. Both paths converge on the same public issue, sizing, implementation, and release process.

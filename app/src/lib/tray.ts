@@ -1,3 +1,8 @@
+// input: core views 推导 + state + tray_* 命令与事件
+// output: initTray()/refreshTray()：状态栏菜单与 switch action 响应
+// position: 托盘桥（串行刷新防竞态）
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { deriveTrayMenu, parseTrayAction } from "@plandeck/core";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";

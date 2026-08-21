@@ -1,3 +1,6 @@
+<!-- input: core commitSwitch + state + tauri-fs backupFiles | output: 切换确认流程：diff 预览→备份→提交→刷新 | position: 组件
+     维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。 -->
+
 <script lang="ts">
   import { commitSwitch } from "@plandeck/core";
   import type { FileEdit, Plan, SubscriptionGroup } from "@plandeck/core";

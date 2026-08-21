@@ -1,3 +1,8 @@
+// input: 进程环境变量 + recognize
+// output: scanEnvPlans()/withEnvPlans()
+// position: 环境变量 *_API_KEY 扫描，产出 env 类 Plan
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import { keyFingerprint } from "./recognize.js";
 import type { Catalog, Plan } from "./types.js";
 

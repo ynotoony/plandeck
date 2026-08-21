@@ -1,3 +1,8 @@
+// input: 各适配器的 readFragment + keyFingerprint
+// output: isFirstRun()/bootstrapCatalog()
+// position: 首跑自举：从现有 Tool 配置扫出初始 Catalog
+// 维护：一旦我被更新，务必更新我的开头注释，以及所属文件夹的 FOLDER.md。
+
 import type { Adapter, Catalog, Plan } from "./types.js";
 import { keyFingerprint } from "./recognize.js";
 
